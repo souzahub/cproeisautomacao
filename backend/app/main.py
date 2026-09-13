@@ -115,19 +115,18 @@ app.include_router(settings.router)
 app.include_router(bot.router)
 app.include_router(comprovantes.router)
 
+@app.get("/")
+def root_status():
+    return {
+        "status": "online",
+        "service": "CPROEIS API Server",
+        "version": "1.0.0"
+    }
+
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok", "service": "cproeis-web"}
-
-FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
-if FRONTEND_DIST.exists():
-    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
-
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str, request: Request):
-        if full_path.startswith("api"):
-            return {"error": "Rota nao encontrada"}
-        file_path = FRONTEND_DIST / full_path
-        if file_path.is_file():
-            return FileResponse(file_path)
-        return FileResponse(FRONTEND_DIST / "index.html")
+    return {
+        "status": "online",
+        "service": "CPROEIS API Server",
+        "version": "1.0.0"
+    }
