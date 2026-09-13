@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>guia de configuração no easypanel - cproeis automação</title>
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #f1f5f9;
+      --border-subtle: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --bg-code: #0f172a;
+      --text-code: #e2e8f0;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-pill: 9999px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-size: 14px;
+      padding: 32px 16px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+
+    h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 500;
+      background-color: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    .badge-accent {
+      background-color: #eff6ff;
+      border-color: #bfdbfe;
+      color: var(--accent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+
+    th {
+      background-color: var(--bg-surface-elevated);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    td {
+      padding: 10px 14px;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      vertical-align: top;
+    }
+
+    .code-inline {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background-color: var(--bg-surface-elevated);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+    }
+
+    .code-block {
+      background-color: var(--bg-code);
+      color: var(--text-code);
+      padding: 14px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-x: auto;
+      margin-top: 10px;
+      margin-bottom: 12px;
+      white-space: pre;
+    }
+
+    .steps-list {
+      list-style-position: inside;
+      color: var(--text-secondary);
+      margin-left: 4px;
+      margin-bottom: 12px;
+    }
+
+    .steps-list li {
+      margin-bottom: 8px;
+    }
+
+    .callout {
+      background-color: var(--bg-surface-elevated);
+      border-left: 3px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      margin-top: 14px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .callout strong {
+      color: var(--text-primary);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    @media (max-width: 680px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>guia de configuração no easypanel</h1>
+      <p class="subtitle">passo a passo para implantação do sistema cproeis automação a partir do repositório git</p>
+    </header>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>1. criação do serviço</h2>
+        <span class="badge badge-accent">tipo: app</span>
+      </div>
+      <p>no painel do seu projeto no easypanel, clique no botão para adicionar um novo serviço e selecione a opção <strong>app</strong>.</p>
+      <div class="grid-2">
+        <div>
+          <span class="badge">nome do serviço</span>
+          <p style="margin-top: 6px;"><span class="code-inline">cproeis-automacao</span></p>
+        </div>
+        <div>
+          <span class="badge">tipo de implantação</span>
+          <p style="margin-top: 6px;"><span class="code-inline">github / git repository</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>2. aba source (código fonte)</h2>
+        <span class="badge">origem do código</span>
+      </div>
+      <p>configure a origem para buscar os arquivos diretamente do github:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>campo</th>
+            <th>valor a preencher</th>
+            <th>descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>repository</strong></td>
+            <td><span class="code-inline">https://github.com/souzahub/cproeisautomacao.git</span></td>
+            <td>url do repositório git criado</td>
+          </tr>
+          <tr>
+            <td><strong>branch</strong></td>
+            <td><span class="code-inline">main</span></td>
+            <td>ramificação principal de produção</td>
+          </tr>
+          <tr>
+            <td><strong>auto deploy</strong></td>
+            <td><span class="code-inline">habilitado</span></td>
+            <td>atualiza a aplicação a cada novo commit</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>3. aba build (construção da imagem)</h2>
+        <span class="badge">dockerfile</span>
+      </div>
+      <p>o projeto possui um dockerfile otimizado em múltiplos estágios (build do frontend em react e ambiente python com playwright/chromium):</p>
+      <table>
+        <thead>
+          <tr>
+            <th>campo</th>
+            <th>valor a preencher</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>build type</strong></td>
+            <td><span class="code-inline">Dockerfile</span></td>
+          </tr>
+          <tr>
+            <td><strong>dockerfile path</strong></td>
+            <td><span class="code-inline">Dockerfile</span> (ou <span class="code-inline">/Dockerfile</span>)</td>
+          </tr>
+          <tr>
+            <td><strong>build context</strong></td>
+            <td><span class="code-inline">.</span> (ou <span class="code-inline">/</span>)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>4. aba environment (variáveis de ambiente)</h2>
+        <span class="badge badge-accent">obrigatório</span>
+      </div>
+      <p>na aba <strong>environment</strong> do easypanel, adicione as seguintes variáveis de configuração:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>chave (key)</th>
+            <th>valor sugerido (value)</th>
+            <th>descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="code-inline">PORT</span></td>
+            <td><span class="code-inline">3000</span></td>
+            <td>porta onde o servidor uvicorn escuta</td>
+          </tr>
+          <tr>
+            <td><span class="code-inline">SECRET_KEY</span></td>
+            <td><span class="code-inline">cproeis_secret_key_producao_2026_segura</span></td>
+            <td>chave secreta para geração dos tokens jwt</td>
+          </tr>
+          <tr>
+            <td><span class="code-inline">INITIAL_MASTER_EMAIL</span></td>
+            <td><span class="code-inline">admin@cproeis.com</span></td>
+            <td>email inicial do usuário administrador master</td>
+          </tr>
+          <tr>
+            <td><span class="code-inline">INITIAL_MASTER_PASSWORD</span></td>
+            <td><span class="code-inline">admin123456</span></td>
+            <td>senha do usuário master inicial</td>
+          </tr>
+          <tr>
+            <td><span class="code-inline">PROEIS_URL</span></td>
+            <td><span class="code-inline">https://www.proeis.rj.gov.br/</span></td>
+            <td>endereço do portal cproeis oficial</td>
+          </tr>
+          <tr>
+            <td><span class="code-inline">MODO_VISIVEL</span></td>
+            <td><span class="code-inline">false</span></td>
+            <td>execução do navegador em modo headless no servidor</td>
+          </tr>
+          <tr>
+            <td><span class="code-inline">MODO_HOMOLOGACAO</span></td>
+            <td><span class="code-inline">true</span></td>
+            <td>modo padrão ao inicializar (teste ou produção)</td>
+          </tr>
+          <tr>
+            <td><span class="code-inline">DATABASE_URL</span></td>
+            <td><span class="code-inline">sqlite:////app/data/cproeis.db</span></td>
+            <td>caminho do banco de dados sqlite persistente</td>
+          </tr>
+          <tr>
+            <td><span class="code-inline">GEMINI_API_KEY</span></td>
+            <td><span class="code-inline"></span> (opcional)</td>
+            <td>chave api do google gemini caso deseje usar o modelo</td>
+          </tr>
+          <tr>
+            <td><span class="code-inline">GEMINI_MODEL</span></td>
+            <td><span class="code-inline">gemini-3.7-flash</span></td>
+            <td>versão do modelo gemini</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>bloco bruto para copiar e colar no easypanel:</h3>
+      <div class="code-block">PORT=3000
+SECRET_KEY=cproeis_secret_key_producao_2026_segura
+INITIAL_MASTER_EMAIL=admin@cproeis.com
+INITIAL_MASTER_PASSWORD=admin123456
+PROEIS_URL=https://www.proeis.rj.gov.br/
+MODO_VISIVEL=false
+MODO_HOMOLOGACAO=true
+DATABASE_URL=sqlite:////app/data/cproeis.db
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.7-flash</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>5. aba mounts / volumes (persistência)</h2>
+        <span class="badge">recomendado</span>
+      </div>
+      <p>para garantir que clientes cadastrados, usuários, históricos e comprovantes pdf não sejam apagados a cada reinicialização ou atualização do container, configure os volumes:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>tipo</th>
+            <th>caminho no container (mount path)</th>
+            <th>finalidade</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Volume / Persist</td>
+            <td><span class="code-inline">/app/data</span></td>
+            <td>guarda o arquivo de banco de dados <span class="code-inline">cproeis.db</span></td>
+          </tr>
+          <tr>
+            <td>Volume / Persist</td>
+            <td><span class="code-inline">/app/comprovantes</span></td>
+            <td>guarda os comprovantes de agendamento em pdf gerados</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>6. aba domains / portas</h2>
+        <span class="badge">acesso externo</span>
+      </div>
+      <p>configure o roteamento web no easypanel:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>campo</th>
+            <th>configuração</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>port</strong></td>
+            <td><span class="code-inline">3000</span></td>
+          </tr>
+          <tr>
+            <td><strong>domain</strong></td>
+            <td>seu domínio ou subdomínio (ex: <span class="code-inline">bot.seudominio.com</span>)</td>
+          </tr>
+          <tr>
+            <td><strong>https / ssl</strong></td>
+            <td>ativado automaticamente pelo let's encrypt do easypanel</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>7. implantação e primeiro acesso</h2>
+        <span class="badge badge-accent">execução</span>
+      </div>
+      <ol class="steps-list">
+        <li>clique no botão <strong>deploy</strong> no canto superior do easypanel.</li>
+        <li>acompanhe a construção na aba <strong>logs / deployments</strong> até exibir o status running.</li>
+        <li>acesse o domínio configurado no navegador.</li>
+        <li>faça login com o usuário master configurado em <span class="code-inline">INITIAL_MASTER_EMAIL</span> e <span class="code-inline">INITIAL_MASTER_PASSWORD</span>.</li>
+        <li>cadastre os clientes na aba <strong>clientes</strong> e teste a automação e a consulta de vagas.</li>
+      </ol>
+      <div class="callout">
+        <strong>dica:</strong> no servidor linux é essencial manter <span class="code-inline">MODO_VISIVEL=false</span> para que o chromium execute sem necessidade de servidor gráfico x11.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
