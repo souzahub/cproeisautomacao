@@ -44,6 +44,8 @@ def carregar_configuracao():
     modo_visivel = os.getenv("MODO_VISIVEL", "true").lower() == "true"
     modo_homologacao = os.getenv("MODO_HOMOLOGACAO", "false").lower() == "true"
     
+    proxy = os.getenv("PROXY_SERVER", os.getenv("HTTP_PROXY", "")).strip()
+    
     return {
         "url": url,
         "tipo_documento": tipo_doc,
@@ -64,7 +66,8 @@ def carregar_configuracao():
         "modo_visivel": modo_visivel,
         "modo_homologacao": modo_homologacao,
         "gemini_api_key": gemini_key,
-        "gemini_model": gemini_model
+        "gemini_model": gemini_model,
+        "proxy": proxy
     }
 
 def resolver_captcha_gemini(img_bytes, api_key, modelo_preferido):
@@ -222,19 +225,30 @@ def obter_captcha(page, ocr, cfg):
 
 def realizar_login(page, ocr, cfg):
     print("Iniciando acesso ao portal CPROEIS...")
+    url = cfg.get("url", "https://proeis.rj.gov.br/").strip()
+    if not url:
+        url = "https://proeis.rj.gov.br/"
+    
     try:
-        page.goto(cfg["url"], wait_until="domcontentloaded", timeout=60000)
-    except Exception:
-        page.goto(cfg["url"], timeout=60000)
+        page.goto(url, wait_until="commit", timeout=45000)
+    except Exception as e:
+        print(f"Tentando conexao direta com login: {str(e)}")
+        try:
+            page.goto("https://proeis.rj.gov.br/FrmLoginVoluntario.aspx", wait_until="commit", timeout=45000)
+        except Exception:
+            pass
     
     tipo_doc = cfg.get("tipo_documento", "CPF")
     try:
-        page.wait_for_selector("#ddlTipoAcesso", timeout=30000)
+        page.wait_for_selector("#ddlTipoAcesso", timeout=25000)
         page.select_option("#ddlTipoAcesso", tipo_doc)
     except Exception:
         pass
 
-    page.wait_for_selector("#txtLogin", state="visible", timeout=30000)
+    try:
+        page.wait_for_selector("#txtLogin", state="visible", timeout=25000)
+    except Exception:
+        pass
     time.sleep(1)
 
     for tentativa in range(1, 11):
@@ -533,17 +547,21 @@ def main():
 
     ocr = ddddocr.DdddOcr(show_ad=False)
 
+    launch_options = {
+        "headless": not cfg.get("modo_visivel", True),
+        "args": [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--start-maximized"
+        ]
+    }
+    if cfg.get("proxy"):
+        launch_options["proxy"] = {"server": cfg["proxy"]}
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=not cfg.get("modo_visivel", True),
-            args=[
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--start-maximized"
-            ]
-        )
+        browser = p.chromium.launch(**launch_options)
         context = browser.new_context(
             no_viewport=True,
             ignore_https_errors=True,

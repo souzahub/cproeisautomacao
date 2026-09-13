@@ -15,17 +15,21 @@ def consultar():
     
     print("Acessando o portal CPROEIS para consultar suas vagas cadastradas...")
     
+    launch_options = {
+        "headless": not cfg.get("modo_visivel", True),
+        "args": [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--start-maximized"
+        ]
+    }
+    if cfg.get("proxy"):
+        launch_options["proxy"] = {"server": cfg["proxy"]}
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=not cfg.get("modo_visivel", True),
-            args=[
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--start-maximized"
-            ]
-        )
+        browser = p.chromium.launch(**launch_options)
         context = browser.new_context(
             no_viewport=True,
             ignore_https_errors=True,
