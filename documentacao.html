@@ -1,575 +1,468 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documentação do sistema de automação CPROEIS</title>
-    <style>
-        :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f8fafc;
-            --bg-tertiary: #f1f5f9;
-            --border-color: #e2e8f0;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #64748b;
-            --accent: #2563eb;
-            --accent-light: #eff6ff;
-            --code-bg: #1e293b;
-            --code-text: #f8fafc;
-            --tag-bg: #e2e8f0;
-            --tag-text: #334155;
-            --radius: 6px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>documentação do sistema cproeis automação</title>
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #f1f5f9;
+      --border-subtle: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --bg-code: #0f172a;
+      --text-code: #e2e8f0;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-pill: 9999px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-secondary);
-            color: var(--text-primary);
-            line-height: 1.6;
-            font-size: 15px;
-        }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-size: 14px;
+    }
 
-        .layout {
-            display: flex;
-            min-height: 100vh;
-        }
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
 
-        .sidebar {
-            width: 280px;
-            background-color: var(--bg-primary);
-            border-right: 1px solid var(--border-color);
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            padding: 24px;
-            overflow-y: auto;
-        }
+    .sidebar {
+      width: 280px;
+      background-color: var(--bg-surface);
+      border-right: 1px solid var(--border-subtle);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      padding: 24px;
+      overflow-y: auto;
+    }
 
-        .sidebar-header {
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 20px;
-        }
+    .sidebar-header {
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 20px;
+    }
 
-        .sidebar-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
+    .sidebar-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
 
-        .sidebar-subtitle {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
+    .sidebar-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
 
-        .nav-list {
-            list-style: none;
-        }
+    .nav-list {
+      list-style: none;
+    }
 
-        .nav-item {
-            margin-bottom: 4px;
-        }
+    .nav-item {
+      margin-bottom: 4px;
+    }
 
-        .nav-link {
-            display: block;
-            padding: 8px 12px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            border-radius: var(--radius);
-            font-size: 14px;
-            transition: background 0.15s ease, color 0.15s ease;
-        }
+    .nav-link {
+      display: block;
+      padding: 8px 12px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
 
-        .nav-link:hover, .nav-link.active {
-            background-color: var(--bg-tertiary);
-            color: var(--text-primary);
-            font-weight: 500;
-        }
+    .nav-link:hover, .nav-link.active {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
 
-        .content {
-            margin-left: 280px;
-            flex: 1;
-            padding: 40px 48px;
-            max-width: 960px;
-        }
+    .content {
+      margin-left: 280px;
+      flex: 1;
+      padding: 40px 48px;
+      max-width: 980px;
+    }
 
-        header.doc-header {
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
-        }
+    header.doc-header {
+      margin-bottom: 36px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
 
-        h1 {
-            font-size: 26px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
 
-        .doc-desc {
-            color: var(--text-secondary);
-            font-size: 16px;
-        }
+    .doc-desc {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
 
-        section {
-            margin-bottom: 48px;
-            scroll-margin-top: 24px;
-        }
+    section {
+      margin-bottom: 40px;
+      scroll-margin-top: 24px;
+    }
 
-        h2 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            color: var(--text-primary);
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 8px;
-        }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 8px;
+    }
 
-        h3 {
-            font-size: 16px;
-            font-weight: 600;
-            margin: 20px 0 10px 0;
-            color: var(--text-primary);
-        }
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 18px 0 8px 0;
+      color: var(--text-primary);
+    }
 
-        p {
-            margin-bottom: 12px;
-            color: var(--text-secondary);
-        }
+    p {
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
 
-        ul, ol {
-            margin-bottom: 16px;
-            padding-left: 20px;
-            color: var(--text-secondary);
-        }
+    ul, ol {
+      margin-bottom: 14px;
+      padding-left: 20px;
+      color: var(--text-secondary);
+    }
 
-        li {
-            margin-bottom: 6px;
-        }
+    li {
+      margin-bottom: 6px;
+    }
 
-        .card {
-            background: var(--bg-primary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            padding: 20px;
-            margin-bottom: 16px;
-        }
+    .card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 16px 0;
-            background: var(--bg-primary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            overflow: hidden;
-            font-size: 14px;
-        }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 600;
+      background-color: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
 
-        th, td {
-            padding: 10px 14px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
+    .badge-accent {
+      background-color: #eff6ff;
+      border-color: #bfdbfe;
+      color: var(--accent);
+    }
 
-        th {
-            background-color: var(--bg-tertiary);
-            color: var(--text-primary);
-            font-weight: 600;
-        }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
 
-        tr:last-child td {
-            border-bottom: none;
-        }
+    th {
+      background-color: var(--bg-surface-elevated);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+    }
 
-        code {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 13px;
-            background-color: var(--bg-tertiary);
-            padding: 2px 6px;
-            border-radius: 4px;
-            color: var(--text-primary);
-        }
+    td {
+      padding: 10px 14px;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      vertical-align: top;
+    }
 
-        pre {
-            background-color: var(--code-bg);
-            color: var(--code-text);
-            padding: 16px;
-            border-radius: var(--radius);
-            overflow-x: auto;
-            margin: 12px 0;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 13px;
-            line-height: 1.5;
-        }
+    .code-inline {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background-color: var(--bg-surface-elevated);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+    }
 
-        pre code {
-            background: none;
-            color: inherit;
-            padding: 0;
-        }
+    .code-block {
+      background-color: var(--bg-code);
+      color: var(--text-code);
+      padding: 14px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-x: auto;
+      margin-top: 10px;
+      margin-bottom: 16px;
+      white-space: pre;
+    }
 
-        .tag {
-            display: inline-block;
-            font-size: 12px;
-            padding: 2px 8px;
-            border-radius: 9999px;
-            background-color: var(--tag-bg);
-            color: var(--tag-text);
-            font-weight: 500;
-        }
+    .callout {
+      background-color: var(--bg-surface-elevated);
+      border-left: 3px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      margin-top: 14px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
 
-        .alert-box {
-            background-color: var(--bg-primary);
-            border: 1px solid var(--border-color);
-            border-left: 4px solid var(--accent);
-            padding: 14px 16px;
-            border-radius: var(--radius);
-            margin: 16px 0;
-            font-size: 14px;
-        }
+    .callout strong {
+      color: var(--text-primary);
+    }
 
-        .alert-box strong {
-            color: var(--text-primary);
-        }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
 
-        @media (max-width: 860px) {
-            .sidebar {
-                display: none;
-            }
-            .content {
-                margin-left: 0;
-                padding: 24px;
-            }
-        }
-    </style>
+    @media (max-width: 860px) {
+      .sidebar {
+        display: none;
+      }
+      .content {
+        margin-left: 0;
+        padding: 24px 16px;
+      }
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-title">Automação CPROEIS</div>
-                <div class="sidebar-subtitle">Manual de uso e referência</div>
-            </div>
-            <nav>
-                <ul class="nav-list">
-                    <li class="nav-item"><a href="#visao-geral" class="nav-link">Visão geral</a></li>
-                    <li class="nav-item"><a href="#sistema-web" class="nav-link">Sistema web e painel</a></li>
-                    <li class="nav-item"><a href="#gestao-clientes" class="nav-link">Gestão de clientes</a></li>
-                    <li class="nav-item"><a href="#periodo-meta" class="nav-link">Período e meta de vagas</a></li>
-                    <li class="nav-item"><a href="#painel-execucao" class="nav-link">Painel e terminal</a></li>
-                    <li class="nav-item"><a href="#gestao-operadores" class="nav-link">Gestão de operadores</a></li>
-                    <li class="nav-item"><a href="#configuracao" class="nav-link">Configuração (.env)</a></li>
-                    <li class="nav-item"><a href="#comprovante-pdf" class="nav-link">Comprovantes em PDF</a></li>
-                    <li class="nav-item"><a href="#execucao-deploy" class="nav-link">Execução e deploy</a></li>
-                    <li class="nav-item"><a href="#estrutura-arquivos" class="nav-link">Estrutura de arquivos</a></li>
-                    <li class="nav-item"><a href="#solucao-problemas" class="nav-link">Solução de problemas</a></li>
-                </ul>
-            </nav>
-        </aside>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">cproeis automação</div>
+        <div class="sidebar-subtitle">documentação do sistema v2.0</div>
+      </div>
+      <nav>
+        <ul class="nav-list">
+          <li class="nav-item"><a href="#arquitetura" class="nav-link">1. arquitetura híbrida</a></li>
+          <li class="nav-item"><a href="#electron" class="nav-link">2. aplicativo desktop (.exe)</a></li>
+          <li class="nav-item"><a href="#gerar-instalador" class="nav-link">3. gerar instalador nsis</a></li>
+          <li class="nav-item"><a href="#servidor-nuvem" class="nav-link">4. servidor api na nuvem</a></li>
+          <li class="nav-item"><a href="#agente-terminal" class="nav-link">5. agente local de terminal</a></li>
+          <li class="nav-item"><a href="#fluxo-bot" class="nav-link">6. funcionamento do robô</a></li>
+          <li class="nav-item"><a href="#consultas" class="nav-link">7. consulta de vagas e pdf</a></li>
+          <li class="nav-item"><a href="#arquivos" class="nav-link">8. estrutura de arquivos</a></li>
+        </ul>
+      </nav>
+    </aside>
 
-        <main class="content">
-            <header class="doc-header">
-                <h1>Documentação do assistente de automação CPROEIS</h1>
-                <p class="doc-desc">Guia técnico e operacional completo para a interface web, gerenciamento volátil de clientes, agendamento de vagas e emissão de comprovantes.</p>
-            </header>
+    <main class="content">
+      <header class="doc-header">
+        <h1>documentação técnica cproeis automação</h1>
+        <p class="doc-desc">guia completo da arquitetura híbrida: aplicativo desktop electron conectado a api central na nuvem.</p>
+      </header>
 
-            <section id="visao-geral">
-                <h2>Visão geral</h2>
-                <p>O sistema foi desenvolvido para monitorar o portal CPROEIS (Governo do Estado do Rio de Janeiro), resolver captchas visuais via visão computacional, pesquisar vagas em sequência de datas ou períodos específicos e confirmar agendamentos automaticamente de acordo com as regras de prioridade de cada cliente cadastrado.</p>
-                <div class="card">
-                    <h3>Principais recursos</h3>
-                    <ul>
-                        <li>Painel web integrado com tema claro e escuro, acessível via navegador em computadores e dispositivos móveis.</li>
-                        <li>Gestão volátil de múltiplos clientes e voluntários com credenciais e preferências isoladas no banco de dados.</li>
-                        <li>Busca por período específico de datas (ex: 01/08/2026 até 25/08/2026) ou modo relativo (+6 a +7 dias).</li>
-                        <li>Meta de vagas configurável: o robô executa a busca até atingir a quantidade de vagas alvo (ex: 5 vagas) e finaliza com segurança.</li>
-                        <li>Modo duplo de operação: Homologação (teste seguro sem inscrição real) e Produção (inscrição confirmada).</li>
-                        <li>Terminal de logs em tempo real e histórico com registro do cliente e operador que iniciou cada execução.</li>
-                        <li>Emissão e download automático de comprovantes oficiais em formato PDF A4.</li>
-                    </ul>
-                </div>
-            </section>
+      <section id="arquitetura">
+        <h2>1. arquitetura híbrida</h2>
+        <p>o sistema opera no modelo híbrido de alta eficiência, dividindo responsabilidades entre nuvem e máquina local para garantir 100% de taxa de sucesso e evitar bloqueios por ip:</p>
+        
+        <div class="grid-2">
+          <div class="card">
+            <span class="badge badge-accent">servidor na nuvem (easypanel)</span>
+            <h3 style="margin-top: 10px;">central de banco de dados e api</h3>
+            <p style="font-size: 13px;">hospeda a api fastapi, autenticação jwt e o banco de dados de clientes, usuários e histórico. responde em json na raiz e opera com consumo mínimo (menos de 60mb de ram).</p>
+          </div>
+          <div class="card">
+            <span class="badge badge-accent">aplicativo desktop (electron local)</span>
+            <h3 style="margin-top: 10px;">interface nativa e motor de automação</h3>
+            <p style="font-size: 13px;">executa localmente na sua máquina com ip residencial brasileiro. consome os clientes da api na nuvem e roda o playwright em segundo plano sem risco de timeout ou bloqueio de firewall.</p>
+          </div>
+        </div>
+      </section>
 
-            <section id="sistema-web">
-                <h2>Sistema web e painel administrativo</h2>
-                <p>A interface web centraliza todas as operações do robô em um painel responsivo com menu lateral expansível e alternador de tema.</p>
-                
-                <div class="card">
-                    <h3>Acesso e autenticação</h3>
-                    <p>O sistema utiliza autenticação via tokens JWT com dois níveis de permissão:</p>
-                    <ul>
-                        <li><strong>Master Admin</strong>: Acesso irrestrito a todas as funções, incluindo gestão de operadores e limpeza de histórico.</li>
-                        <li><strong>Operador</strong>: Acesso ao painel de execução, seleção de clientes, configurações e comprovantes.</li>
-                    </ul>
-                    <p>A porta padrão do servidor web é <code>3000</code>. O acesso local é realizado pelo endereço <code>http://localhost:3000</code>.</p>
-                </div>
-            </section>
+      <section id="electron">
+        <h2>2. aplicativo desktop electron (.exe)</h2>
+        <p>o aplicativo desktop reúne toda a interface react moderna dentro de um executável nativo do windows.</p>
+        
+        <h3>módulos inclusos no aplicativo desktop:</h3>
+        <ul>
+          <li><strong>painel de controle:</strong> seleção de cliente ativo, modo (homologação ou produção), acionamento de automação e consulta de vagas com terminal de logs em tempo real.</li>
+          <li><strong>gestão de clientes:</strong> cadastro completo de clientes (cpf, senha, convênio, eventos preferidos, datas e metas de vagas).</li>
+          <li><strong>comprovantes:</strong> visualização e download dos comprovantes de agendamento gerados em pdf.</li>
+          <li><strong>configurações do sistema:</strong> ajuste de parâmetros padrão e chaves api.</li>
+          <li><strong>gestão de usuários:</strong> gerenciamento de operadores e administradores master.</li>
+        </ul>
+      </section>
 
-            <section id="gestao-clientes">
-                <h2>Gestão de clientes e perfis voláteis</h2>
-                <p>Na aba <strong>clientes</strong> do menu lateral, é possível cadastrar e gerenciar perfis independentes de voluntários. Cada cliente possui suas próprias regras armazenadas de forma segura no banco de dados SQL (SQLite), sem dados fixados no código-fonte.</p>
+      <section id="gerar-instalador">
+        <h2>3. gerar instalador nsis (.exe)</h2>
+        <p>o projeto possui um script automatizado para gerar o instalador do windows no padrão clássico nsis (avançar > escolher pasta > instalar > criar atalho > concluir).</p>
 
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Campo</th>
-                            <th>Descrição</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>Nome do cliente</code></td>
-                            <td>Identificador amigável do voluntário (ex: Dr. Lucas - Enfermagem).</td>
-                        </tr>
-                        <tr>
-                            <td><code>Tipo e documento</code></td>
-                            <td>CPF ou RG utilizado para autenticação no portal do CPROEIS.</td>
-                        </tr>
-                        <tr>
-                            <td><code>Senha de acesso</code></td>
-                            <td>Senha do voluntário no portal, com recurso de visualização sob demanda.</td>
-                        </tr>
-                        <tr>
-                            <td><code>Convênio alvo</code></td>
-                            <td>Convênio onde as vagas serão filtradas (ex: HCPM - RAS).</td>
-                        </tr>
-                        <tr>
-                            <td><code>Eventos preferidos</code></td>
-                            <td>Lista de eventos prioritários separados por vírgula.</td>
-                        </tr>
-                        <tr>
-                            <td><code>Apenas eventos listados</code></td>
-                            <td>Restringe a inscrição exclusivamente aos eventos definidos na lista.</td>
-                        </tr>
-                        <tr>
-                            <td><code>Apenas titulares</code></td>
-                            <td>Descarta vagas reservas e aceita apenas vagas da categoria titular.</td>
-                        </tr>
-                        <tr>
-                            <td><code>Status</code></td>
-                            <td>Permite ativar ou desativar temporariamente o perfil do cliente.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+        <h3>passo a passo para gerar o instalador:</h3>
+        <ol>
+          <li>dê dois cliques no arquivo <span class="code-inline">gerar_instalador_desktop.bat</span> na raiz do projeto.</li>
+          <li>o script compilará a interface react com o vite e construirá o instalador pelo electron-builder.</li>
+          <li>ao concluir, a pasta <span class="code-inline">dist_instalador</span> será aberta automaticamente com o arquivo do instalador executável.</li>
+        </ol>
 
-            <section id="periodo-meta">
-                <h2>Período de busca e meta de vagas</h2>
-                <p>O robô suporta duas modalidades de intervalo de datas e permite estabelecer uma quantidade máxima de vagas para o ciclo de agendamento:</p>
+        <div class="code-block">call gerar_instalador_desktop.bat</div>
+      </section>
 
-                <div class="card">
-                    <h3>1. Regra de datas</h3>
-                    <ul>
-                        <li><strong>Período de datas (início e fim)</strong>: Você define uma data inicial e final (ex: de 01/08/2026 até 25/08/2026). O robô percorre todos os dias do período sequencialmente.</li>
-                        <li><strong>Dias à frente</strong>: Realiza a rotação a partir do dia atual (ex: de +6 a +7 dias à frente).</li>
-                    </ul>
-                </div>
+      <section id="servidor-nuvem">
+        <h2>4. servidor api na nuvem (easypanel)</h2>
+        <p>o servidor online funciona estritamente como backend de dados e api rest.</p>
 
-                <div class="card">
-                    <h3>2. Meta de vagas (quantidade desejada)</h3>
-                    <p>Ao definir uma meta (ex: <strong>5 vagas</strong>):</p>
-                    <ol>
-                        <li>O robô inicia a varredura no período e, a cada vaga compatível encontrada e inscrita, incrementa o contador.</li>
-                        <li>Se atingir a meta de 5 vagas, finaliza a execução imediatamente, emite o comprovante em PDF e encerra o ciclo.</li>
-                        <li>Caso percorra todas as datas ou atinja o limite máximo de tentativas sem completar todas as vagas, finaliza com segurança e registra o total de vagas obtidas.</li>
-                    </ol>
-                </div>
-            </section>
+        <h3>resposta da rota raiz:</h3>
+        <p>ao acessar <span class="code-inline">https://cprsautomacao.devsouza.online/</span> no navegador, o servidor retorna o status em formato json:</p>
+        <div class="code-block">{
+  "status": "online",
+  "service": "CPROEIS API Server",
+  "version": "1.0.0"
+}</div>
 
-            <section id="painel-execucao">
-                <h2>Painel de controle e terminal</h2>
-                <p>Na aba <strong>painel</strong>, o operador gerencia e acompanha a execução do assistente:</p>
-                <ul>
-                    <li><strong>Seletor de cliente</strong>: Permite buscar e selecionar instantaneamente o cliente que será executado, através de uma janela de pesquisa por nome, documento ou convênio.</li>
-                    <li><strong>Modo de operação</strong>: Alternância rápida entre Homologação (simulação com logs) e Produção (inscrição real).</li>
-                    <li><strong>Terminal em tempo real</strong>: Exibe passo a passo a resolução dos captchas, os ciclos de varredura das datas e o progresso das vagas agendadas.</li>
-                    <li><strong>Histórico de execuções</strong>: Tabela completa com id, cliente atendido, modo, operador, data/hora de início e término.</li>
-                </ul>
-            </section>
+        <h3>variáveis de ambiente no easypanel:</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>chave</th>
+              <th>exemplo de valor</th>
+              <th>descrição</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="code-inline">PORT</span></td>
+              <td><span class="code-inline">3000</span></td>
+              <td>porta interna do container</td>
+            </tr>
+            <tr>
+              <td><span class="code-inline">ADMIN_EMAIL</span></td>
+              <td><span class="code-inline">luansouza.tl29@gmail.com</span></td>
+              <td>email master de acesso e sincronização</td>
+            </tr>
+            <tr>
+              <td><span class="code-inline">ADMIN_PASSWORD</span></td>
+              <td><span class="code-inline">sua_senha_segura</span></td>
+              <td>senha master de acesso</td>
+            </tr>
+            <tr>
+              <td><span class="code-inline">SECRET_KEY</span></td>
+              <td><span class="code-inline">chave_jwt_secreta_longa</span></td>
+              <td>chave para assinatura de tokens jwt</td>
+            </tr>
+            <tr>
+              <td><span class="code-inline">DATABASE_URL</span></td>
+              <td><span class="code-inline">sqlite:////app/data/cproeis.db</span></td>
+              <td>caminho do banco persistente no volume</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-            <section id="gestao-operadores">
-                <h2>Gestão de operadores</h2>
-                <p>Disponível na aba <strong>operadores</strong> para usuários administradores (Master Admin):</p>
-                <ul>
-                    <li>Cadastro de novos operadores com nome, email e senha.</li>
-                    <li>Edição de credenciais e redefinição de senhas.</li>
-                    <li>Ativação e desativação de acesso.</li>
-                    <li>Remoção de operadores com confirmação de segurança.</li>
-                </ul>
-            </section>
+      <section id="agente-terminal">
+        <h2>5. agente local de terminal</h2>
+        <p>além do aplicativo desktop em electron, você também conta com o agente rápido de terminal para execuções ágeis:</p>
 
-            <section id="configuracao">
-                <h2>Configuração do arquivo .env</h2>
-                <p>O arquivo <code>.env</code> define as configurações padrão globais e chaves de integração do sistema:</p>
-                
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Variável</th>
-                            <th>Padrão</th>
-                            <th>Descrição</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>PORT</code></td>
-                            <td><code>3000</code></td>
-                            <td>Porta do servidor FastAPI e aplicação web.</td>
-                        </tr>
-                        <tr>
-                            <td><code>JWT_SECRET</code></td>
-                            <td><code>chave_secreta</code></td>
-                            <td>Chave criptográfica para geração de tokens de sessão.</td>
-                        </tr>
-                        <tr>
-                            <td><code>ADMIN_EMAIL</code></td>
-                            <td><code>admin@cproeis.local</code></td>
-                            <td>Email de acesso do usuário Master Admin.</td>
-                        </tr>
-                        <tr>
-                            <td><code>ADMIN_PASSWORD</code></td>
-                            <td><code>admin123</code></td>
-                            <td>Senha do usuário Master Admin.</td>
-                        </tr>
-                        <tr>
-                            <td><code>PROEIS_URL</code></td>
-                            <td><code>https://www.proeis.rj.gov.br/</code></td>
-                            <td>Endereço do portal oficial do CPROEIS.</td>
-                        </tr>
-                        <tr>
-                            <td><code>CONVENIO</code></td>
-                            <td><code>HCPM - RAS</code></td>
-                            <td>Convênio padrão do sistema.</td>
-                        </tr>
-                        <tr>
-                            <td><code>EVENTOS_PREFERIDOS</code></td>
-                            <td><code>ENFERMAGEM CIRURGIA GERAL</code></td>
-                            <td>Lista de eventos padrão separados por vírgula.</td>
-                        </tr>
-                        <tr>
-                            <td><code>INTERVALO_SEGUNDOS</code></td>
-                            <td><code>6</code></td>
-                            <td>Tempo de espera em segundos entre cada tentativa.</td>
-                        </tr>
-                        <tr>
-                            <td><code>TENTATIVAS_MAXIMAS</code></td>
-                            <td><code>120</code></td>
-                            <td>Limite de ciclos por execução.</td>
-                        </tr>
-                        <tr>
-                            <td><code>GEMINI_MODEL</code></td>
-                            <td><code>gemini-3.7-flash</code></td>
-                            <td>Modelo do Gemini utilizado para resolução de captcha.</td>
-                        </tr>
-                        <tr>
-                            <td><code>GEMINI_API_KEY</code></td>
-                            <td><code>sua_chave</code></td>
-                            <td>Chave da API Google Gemini para visão computacional.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+        <h3>como utilizar o agente:</h3>
+        <ol>
+          <li>dê dois cliques no arquivo <span class="code-inline">iniciar_agente_nuvem.bat</span>.</li>
+          <li>o agente autentica na api do servidor online e lista todos os clientes cadastrados.</li>
+          <li>escolha a opção desejada no menu interativo (executar homologação, produção, consulta de vagas ou execução em lote).</li>
+          <li>o robô roda 100% em segundo plano (headless) e exibe os logs no próprio terminal.</li>
+        </ol>
+      </section>
 
-            <section id="comprovante-pdf">
-                <h2>Comprovantes em PDF</h2>
-                <p>Ao finalizar com êxito um agendamento, o sistema emite automaticamente o comprovante oficial formatado em padrão A4.</p>
-                <div class="card">
-                    <p><strong>Recursos da aba Comprovantes:</strong></p>
-                    <ul>
-                        <li>Listagem de todos os comprovantes emitidos na pasta <code>comprovantes/</code>.</li>
-                        <li>Exibição da data de emissão e tamanho do arquivo.</li>
-                        <li>Botão de download direto do arquivo PDF pelo navegador.</li>
-                    </ul>
-                </div>
-            </section>
+      <section id="fluxo-bot">
+        <h2>6. funcionamento do robô e regras de negócio</h2>
+        <p>o motor de agendamento automatizado executa as seguintes etapas:</p>
 
-            <section id="execucao-deploy">
-                <h2>Execução e deploy</h2>
-                <div class="card">
-                    <h3>1. Execução local no Windows</h3>
-                    <p>Basta dar um duplo clique no arquivo <code>iniciar_web.bat</code>. Ele instalará as dependências necessárias e abrirá o servidor web na porta 3000.</p>
-                </div>
+        <ol>
+          <li><strong>autenticação:</strong> acessa a tela de login do portal cproeis, seleciona o tipo de documento, preenche as credenciais e decodifica o captcha automaticamente via ddddocr com pré-processamento opencv (com suporte a fallback gemini ai).</li>
+          <li><strong>módulo de escala:</strong> navega até a área de voluntários/escala e seleciona o convênio configurado para o cliente.</li>
+          <li><strong>varredura de datas:</strong> percorre as datas configuradas (modo intervalo fixo ou dias à frente, ex: +6 a +7 dias).</li>
+          <li><strong>filtro e pontuação de vagas:</strong> avalia as vagas disponíveis conforme as regras de eventos preferidos, prioridade de vagas titulares e meta configurada.</li>
+          <li><strong>confirmação e agendamento:</strong> inscreve o voluntário e finaliza o ciclo ao atingir a meta estipulada.</li>
+        </ol>
+      </section>
 
-                <div class="card">
-                    <h3>2. Deploy em nuvem ou servidor (Docker / Easypanel)</h3>
-                    <p>O projeto está estruturado em monorepo contendo <code>Dockerfile</code> e <code>docker-compose.yml</code>:</p>
-                    <pre><code>docker compose up -d --build</code></pre>
-                    <p>Os dados do banco SQLite e os comprovantes gerados são preservados nos volumes <code>data/</code> e <code>comprovantes/</code>.</p>
-                </div>
-            </section>
+      <section id="consultas">
+        <h2>7. consulta de vagas e comprovantes em pdf</h2>
+        <p>o módulo de consulta permite verificar em tempo real os eventos já confirmados no portal do proeis para o cliente:</p>
 
-            <section id="estrutura-arquivos">
-                <h2>Estrutura de arquivos do projeto</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Pasta / Arquivo</th>
-                            <th>Finalidade</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>backend/app/</code></td>
-                            <td>Servidor FastAPI, autenticação JWT, banco SQLite, rotas de API e runner do bot.</td>
-                        </tr>
-                        <tr>
-                            <td><code>frontend/</code></td>
-                            <td>Interface web em React, Vite, Tailwind tokens e componentes dialog/alert-dialog.</td>
-                        </tr>
-                        <tr>
-                            <td><code>bot.py</code></td>
-                            <td>Script de automação Playwright com resolução de captcha e agendamento.</td>
-                        </tr>
-                        <tr>
-                            <td><code>gerar_pdf.py</code></td>
-                            <td>Módulo de renderização de comprovantes em formato PDF A4.</td>
-                        </tr>
-                        <tr>
-                            <td><code>iniciar_web.bat</code></td>
-                            <td>Script para iniciar o servidor web completo localmente.</td>
-                        </tr>
-                        <tr>
-                            <td><code>iniciar_local.bat</code></td>
-                            <td>Script para execução direta do bot em modo desktop/terminal.</td>
-                        </tr>
-                        <tr>
-                            <td><code>data/app.db</code></td>
-                            <td>Banco de dados SQLite contendo usuários, clientes e histórico de execuções.</td>
-                        </tr>
-                        <tr>
-                            <td><code>comprovantes/</code></td>
-                            <td>Pasta de armazenamento dos arquivos PDF gerados.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+        <ul>
+          <li>acessa a tela de voluntários e ativa a exibição do mês corrente.</li>
+          <li>extrai o relatório de escalas confirmadas.</li>
+          <li>gera automaticamente um documento pdf formatado contendo cabeçalho institucional, nome do evento, convênio, data/hora, ponto de encontro e endereço.</li>
+          <li>salva o arquivo na pasta <span class="code-inline">comprovantes/</span>.</li>
+        </ul>
+      </section>
 
-            <section id="solucao-problemas">
-                <h2>Solução de problemas</h2>
-                <div class="card">
-                    <h3>Falha no login ou captcha no portal</h3>
-                    <p>Verifique se as credenciais do cliente (documento e senha) estão preenchidas corretamente e se a chave <code>GEMINI_API_KEY</code> possui cota ativa para resolução visual.</p>
-                </div>
-                <div class="card">
-                    <h3>Datas não aparecem no menu do portal</h3>
-                    <p>O portal CPROEIS libera as datas de acordo com o cronograma interno. Quando uma data configurada ainda não estiver aberta, o robô registrará a informação no log e continuará tentando nos ciclos subsequentes.</p>
-                </div>
-                <div class="card">
-                    <h3>Acesso ao painel web por outros dispositivos</h3>
-                    <p>Para acessar o painel a partir do celular ou de outro computador na mesma rede local, utilize o endereço <code>http://IP_DO_COMPUTADOR:3000</code>.</p>
-                </div>
-            </section>
-        </main>
-    </div>
+      <section id="arquivos">
+        <h2>8. estrutura de arquivos do projeto</h2>
+        <div class="code-block">├── backend/
+│   ├── app/
+│   │   ├── routes/            (rotas da api: auth, clients, bot, users, settings, comprovantes)
+│   │   ├── config.py          (configurações e variáveis de ambiente)
+│   │   ├── database.py        (conexão e sessões sqlalchemy)
+│   │   ├── models.py          (tabelas do banco de dados)
+│   │   ├── main.py            (aplicação fastapi com resposta json na raiz)
+│   │   └── security.py        (criptografia bcrypt e tokens jwt)
+│   └── requirements.txt
+├── frontend/
+│   ├── electron/
+│   │   ├── main.cjs           (processo principal do electron com ipc local)
+│   │   └── preload.cjs        (ponte segura de api exposta ao renderer)
+│   ├── src/
+│   │   ├── pages/             (dashboard, clients, comprovantes, settings, users, login)
+│   │   ├── components/        (sidebar, header, statusbadge, ui components)
+│   │   └── api/client.js      (cliente http para conexão com o servidor)
+│   └── package.json           (scripts vite e configuração do electron-builder)
+├── bot.py                     (motor principal de automação e agendamento)
+├── consultar_vagas.py         (motor de consulta de escalas confirmadas)
+├── gerar_pdf.py               (gerador de comprovantes pdf)
+├── agente_local.py            (agente local que consome dados da nuvem)
+├── gerar_instalador_desktop.bat (gera o instalador windows .exe com nsis)
+├── iniciar_agente_nuvem.bat   (inicia o agente interativo de terminal)
+├── iniciar_local.bat          (executa a automação local padrão)
+├── consultar_vagas.bat        (executa a consulta de vagas local)
+├── Dockerfile                 (imagem docker para o servidor na nuvem)
+└── docker-compose.yml         (configuração de deploy no easypanel)</div>
+      </section>
+    </main>
+  </div>
 </body>
 </html>
