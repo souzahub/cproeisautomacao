@@ -68,9 +68,18 @@ export function Settings() {
 
   async function handleTestServer() {
     setTestingServer(true)
-    await checkServerConnection(serverUrl)
-    localStorage.setItem("server_url", serverUrl)
+    const normalized = (serverUrl || "").trim().replace(/\/+$/, "")
+    setServerUrl(normalized)
+    await checkServerConnection(normalized)
+    localStorage.setItem("server_url", normalized)
     setTestingServer(false)
+  }
+
+  function handleResetServerUrl() {
+    const defaultUrl = "https://cprsautomacao.devsouza.online"
+    setServerUrl(defaultUrl)
+    localStorage.setItem("server_url", defaultUrl)
+    checkServerConnection(defaultUrl)
   }
 
   function handleChange(field, value) {
@@ -82,7 +91,8 @@ export function Settings() {
     setSaving(true)
     setNotification({ type: "", text: "" })
     try {
-      localStorage.setItem("server_url", serverUrl)
+      const normalized = (serverUrl || "").trim().replace(/\/+$/, "")
+      localStorage.setItem("server_url", normalized)
       const updated = await settingsApi.update(formData)
       setFormData(updated)
       setNotification({ type: "info", text: "configurações atualizadas" })
@@ -105,16 +115,16 @@ export function Settings() {
         <div className="card-header">
           <div>
             <h3 className="card-title">conexão com o servidor online</h3>
-            <p className="card-desc">status de comunicação da aplicação desktop com a api na nuvem</p>
+            <p className="card-desc">endereço do servidor da api e banco de dados na nuvem</p>
           </div>
           <span className={`badge-pill ${serverStatus === "online" ? "badge-success" : serverStatus === "verificando" ? "badge-homologacao" : "badge-error"}`}>
             {serverStatus === "online" ? "servidor online" : serverStatus === "verificando" ? "verificando..." : "servidor offline"}
           </span>
         </div>
 
-        <div className="grid-cols-2" style={{ alignItems: "flex-end" }}>
+        <div className="grid-cols-2" style={{ alignItems: "flex-end", gap: "16px" }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" htmlFor="server_url">endereço da api online</label>
+            <label className="form-label" htmlFor="server_url">endereço da api</label>
             <input
               id="server_url"
               className="form-input"
@@ -124,14 +134,23 @@ export function Settings() {
             />
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", minHeight: "42px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", minHeight: "42px", flexWrap: "wrap" }}>
             <button
               type="button"
               className="btn btn-secondary"
               onClick={handleTestServer}
               disabled={testingServer}
             >
-              {testingServer ? "testando..." : "testar conexão"}
+              {testingServer ? "testando..." : "testar e salvar endereço"}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={handleResetServerUrl}
+              title="restaurar endereço original da nuvem"
+            >
+              restaurar padrão
             </button>
 
             {serverLatency !== null && (

@@ -8,6 +8,8 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showServerConfig, setShowServerConfig] = useState(false)
+  const [customServerUrl, setCustomServerUrl] = useState(() => localStorage.getItem("server_url") || "https://cprsautomacao.devsouza.online")
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -125,6 +127,34 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
             >
               {loading ? "entrando..." : "acessar painel"}
             </button>
+
+            <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--border-subtle)" }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowServerConfig(!showServerConfig)}
+                style={{ fontSize: "11px", color: "var(--text-secondary)", width: "100%", justifyContent: "center" }}
+              >
+                {showServerConfig ? "ocultar configuração do servidor" : "configurar endereço do servidor"}
+              </button>
+
+              {showServerConfig && (
+                <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label className="form-label" style={{ fontSize: "11px" }}>url da api do servidor:</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ fontSize: "12px", padding: "6px 10px" }}
+                    value={customServerUrl}
+                    onChange={(e) => {
+                      setCustomServerUrl(e.target.value)
+                      localStorage.setItem("server_url", e.target.value)
+                    }}
+                    placeholder="https://cprsautomacao.devsouza.online"
+                  />
+                </div>
+              )}
+            </div>
           </form>
         </div>
       </div>

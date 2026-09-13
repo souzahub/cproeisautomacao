@@ -1,6 +1,12 @@
-const BASE_URL = typeof window !== "undefined" && window.location && window.location.protocol.startsWith("http")
-  ? ""
-  : (localStorage.getItem("server_url") || "https://cprsautomacao.devsouza.online")
+export function getBaseUrl() {
+  if (typeof window !== "undefined" && window.localStorage) {
+    const custom = localStorage.getItem("server_url")
+    if (custom && custom.trim()) {
+      return custom.trim().replace(/\/+$/, "")
+    }
+  }
+  return "https://cprsautomacao.devsouza.online"
+}
 
 function getToken() {
   return localStorage.getItem("auth_token")
@@ -17,7 +23,8 @@ export async function apiRequest(endpoint, options = {}) {
     headers["Authorization"] = `Bearer ${token}`
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
+  const baseUrl = getBaseUrl()
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     headers
   })
