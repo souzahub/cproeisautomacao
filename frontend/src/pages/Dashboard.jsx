@@ -93,12 +93,24 @@ export function Dashboard({ user, onNavigateTab }) {
     }
     loadAll()
 
-    const interval = setInterval(() => {
-      fetchStatus()
-      fetchLogs()
-    }, 2500)
-
-    return () => clearInterval(interval)
+    if (window.electronAPI) {
+      const unsubLog = window.electronAPI.onLog((logObj) => {
+        setLogs((prev) => [...prev, logObj])
+      })
+      const unsubStatus = window.electronAPI.onStatusChange((newStatus) => {
+        setStatusInfo((prev) => ({ ...prev, ...newStatus }))
+      })
+      return () => {
+        if (unsubLog) unsubLog()
+        if (unsubStatus) unsubStatus()
+      }
+    } else {
+      const interval = setInterval(() => {
+        fetchStatus()
+        fetchLogs()
+      }, 2500)
+      return () => clearInterval(interval)
+    }
   }, [])
 
   useEffect(() => {
@@ -117,9 +129,9 @@ export function Dashboard({ user, onNavigateTab }) {
     setActionLoading(true)
     try {
       const cId = selectedClientId ? Number(selectedClientId) : null
-      await botApi.start(selectedMode, cId)
+      await botApi.start(selectedMode, cId, selectedClient)
       await fetchStatus()
-      await fetchLogs()
+      if (!window.electronAPI) await fetchLogs()
     } catch (err) {
       setErrorMsg(err.message || "falha ao iniciar automação")
     } finally {
@@ -132,9 +144,9 @@ export function Dashboard({ user, onNavigateTab }) {
     setActionLoading(true)
     try {
       const cId = selectedClientId ? Number(selectedClientId) : null
-      await botApi.consult(cId)
+      await botApi.consult(cId, selectedClient)
       await fetchStatus()
-      await fetchLogs()
+      if (!window.electronAPI) await fetchLogs()
     } catch (err) {
       setErrorMsg(err.message || "falha ao consultar vagas")
     } finally {

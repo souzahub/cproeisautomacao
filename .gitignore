@@ -22,3 +22,6 @@ teste_comprovante.pdf
 .vscode/
 .idea/
 .DS_Store
+
+dist_instalador/
+frontend/dist_instalador/

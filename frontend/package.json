@@ -1,12 +1,17 @@
 {
-  "name": "cproeis-frontend",
+  "name": "cproeis-automacao",
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "electron/main.cjs",
+  "author": "CPROEIS",
+  "description": "Sistema de automação e agendamento CPROEIS",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:dev": "electron .",
+    "build:electron": "vite build && electron-builder"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -14,6 +19,49 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^31.4.0",
+    "electron-builder": "^24.13.3",
     "vite": "^5.4.2"
+  },
+  "build": {
+    "appId": "com.cproeis.automacao",
+    "productName": "CPROEIS Automacao",
+    "directories": {
+      "output": "../dist_instalador"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../",
+        "to": "app_engine",
+        "filter": [
+          "*.py",
+          "*.bat",
+          "cproes/**/*",
+          "dataset_captchas/**/*",
+          "backend/**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CPROEIS Automacao"
+    }
   }
 }

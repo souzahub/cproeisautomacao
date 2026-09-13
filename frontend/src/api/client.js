@@ -1,4 +1,6 @@
-const BASE_URL = ""
+const BASE_URL = typeof window !== "undefined" && window.location && window.location.protocol.startsWith("http")
+  ? ""
+  : (localStorage.getItem("server_url") || "https://cprsautomacao.devsouza.online")
 
 function getToken() {
   return localStorage.getItem("auth_token")
@@ -97,23 +99,44 @@ export const settingsApi = {
 }
 
 export const botApi = {
-  start: (mode, clientId = null) =>
-    apiRequest("/api/bot/start", {
+  start: (mode, clientId = null, clientData = null) => {
+    if (window.electronAPI) {
+      return window.electronAPI.startBot(mode, clientData)
+    }
+    return apiRequest("/api/bot/start", {
       method: "POST",
       body: JSON.stringify({ mode, client_id: clientId })
-    }),
-  consult: (clientId = null) =>
-    apiRequest("/api/bot/consult", {
+    })
+  },
+  consult: (clientId = null, clientData = null) => {
+    if (window.electronAPI) {
+      return window.electronAPI.startConsult(clientData)
+    }
+    return apiRequest("/api/bot/consult", {
       method: "POST",
       body: JSON.stringify({ client_id: clientId })
-    }),
-  stop: () =>
-    apiRequest("/api/bot/stop", {
+    })
+  },
+  stop: () => {
+    if (window.electronAPI) {
+      return window.electronAPI.stopBot()
+    }
+    return apiRequest("/api/bot/stop", {
       method: "POST"
-    }),
-
-  getStatus: () => apiRequest("/api/bot/status"),
-  getLogs: (offset = 0) => apiRequest(`/api/bot/logs?offset=${offset}`),
+    })
+  },
+  getStatus: () => {
+    if (window.electronAPI) {
+      return window.electronAPI.getStatus()
+    }
+    return apiRequest("/api/bot/status")
+  },
+  getLogs: (offset = 0) => {
+    if (window.electronAPI) {
+      return Promise.resolve({ logs: [] })
+    }
+    return apiRequest(`/api/bot/logs?offset=${offset}`)
+  },
   getHistory: () => apiRequest("/api/bot/history"),
   clearHistory: () =>
     apiRequest("/api/bot/history", {
