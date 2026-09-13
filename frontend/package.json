@@ -62,7 +62,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "CPROEIS Automacao"
+      "shortcutName": "CPROEIS Automacao",
+      "runAfterFinish": true
     }
   }
 }

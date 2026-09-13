@@ -12,6 +12,19 @@ let botStatus = {
   logs_count: 0
 }
 
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+}
+
 function getProjectRoot() {
   if (app.isPackaged) {
     const resourcesPath = path.join(process.resourcesPath, "app_engine")
@@ -31,6 +44,7 @@ function createWindow() {
     title: "cproeis automação",
     icon: path.join(__dirname, "icon.ico"),
     backgroundColor: "#0d1117",
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -40,11 +54,33 @@ function createWindow() {
     autoHideMenuBar: true
   })
 
-  const indexPath = path.join(__dirname, "../dist/index.html")
-  if (fs.existsSync(indexPath)) {
-    mainWindow.loadFile(indexPath)
-  } else {
-    mainWindow.loadURL("http://localhost:5173")
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show()
+  })
+
+  const appPath = app.getAppPath()
+  const possiblePaths = [
+    path.join(__dirname, "../dist/index.html"),
+    path.join(appPath, "dist", "index.html"),
+    path.join(__dirname, "dist", "index.html"),
+    path.join(appPath, "index.html")
+  ]
+
+  let loaded = false
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      mainWindow.loadFile(p)
+      loaded = true
+      break
+    }
+  }
+
+  if (!loaded) {
+    if (!app.isPackaged) {
+      mainWindow.loadURL("http://localhost:5173")
+    } else {
+      mainWindow.loadFile(path.join(appPath, "dist", "index.html"))
+    }
   }
 
   mainWindow.on("closed", () => {
