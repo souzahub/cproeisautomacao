@@ -1,0 +1,4 @@
+playwright
+ddddocr
+opencv-python
+pillow

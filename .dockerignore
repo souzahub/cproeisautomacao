@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+frontend/node_modules
+frontend/dist
+data/*.db
+.env.local
+.vscode
+.idea

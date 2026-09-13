@@ -1,0 +1,14 @@
+{
+  "tipo_documento": "CPF",
+  "documento": "",
+  "senha": "",
+  "convenio": "HCPM - RAS",
+  "data_evento": "",
+  "eventos_preferidos": [
+    "UPE APOIO"
+  ],
+  "apenas_titular": false,
+  "intervalo_segundos": 5,
+  "tentativas_maximas": 120,
+  "modo_visivel": true
+}
