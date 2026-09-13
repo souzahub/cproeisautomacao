@@ -53,11 +53,11 @@ def seed_master_user():
             db.add(user)
             db.commit()
         else:
-            if ADMIN_EMAIL and master_user.email != ADMIN_EMAIL:
+            if ADMIN_EMAIL:
                 master_user.email = ADMIN_EMAIL
-                if ADMIN_PASSWORD:
-                    master_user.hashed_password = get_password_hash(ADMIN_PASSWORD)
-                db.commit()
+            if ADMIN_PASSWORD:
+                master_user.hashed_password = get_password_hash(ADMIN_PASSWORD)
+            db.commit()
 
         client_count = db.query(ClientProfile).count()
         if client_count == 0:

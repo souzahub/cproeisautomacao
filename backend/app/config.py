@@ -11,8 +11,8 @@ JWT_SECRET = os.getenv("JWT_SECRET", "proeis_chave_secreta_jwt_padrao_2026_antig
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = 60 * 24
 
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@cproeis.local")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", os.getenv("INITIAL_MASTER_EMAIL", "admin@cproeis.local")).strip()
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", os.getenv("INITIAL_MASTER_PASSWORD", "admin123")).strip()
 
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
