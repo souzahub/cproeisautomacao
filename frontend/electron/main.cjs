@@ -29,6 +29,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 680,
     title: "cproeis automação",
+    icon: path.join(__dirname, "icon.ico"),
     backgroundColor: "#0d1117",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
