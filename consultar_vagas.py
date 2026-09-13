@@ -18,10 +18,22 @@ def consultar():
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=not cfg.get("modo_visivel", True),
-            args=["--start-maximized"]
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--start-maximized"
+            ]
         )
-        context = browser.new_context(no_viewport=True)
+        context = browser.new_context(
+            no_viewport=True,
+            ignore_https_errors=True,
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+        )
         page = context.new_page()
+        page.set_default_timeout(60000)
+        page.set_default_navigation_timeout(60000)
         
         try:
             if not realizar_login(page, ocr, cfg):
@@ -32,15 +44,24 @@ def consultar():
             btn_vol = page.query_selector("a:has-text('Voluntários'), a:has-text('Voluntarios')")
             if btn_vol:
                 btn_vol.click()
-                page.wait_for_load_state("networkidle")
+                try:
+                    page.wait_for_load_state("domcontentloaded", timeout=15000)
+                except Exception:
+                    pass
             elif "FrmMenuVoluntario.aspx" not in page.url:
-                page.goto("https://proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="networkidle")
+                try:
+                    page.goto("https://proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="domcontentloaded", timeout=60000)
+                except Exception:
+                    page.goto("https://proeis.rj.gov.br/FrmMenuVoluntario.aspx", timeout=60000)
             time.sleep(2)
 
             chk_mes = page.query_selector("#chkEveMes")
             if chk_mes:
                 chk_mes.click()
-                page.wait_for_load_state("networkidle")
+                try:
+                    page.wait_for_load_state("domcontentloaded", timeout=15000)
+                except Exception:
+                    pass
                 time.sleep(2)
 
             textarea = page.query_selector("#txtEveVoluntario")

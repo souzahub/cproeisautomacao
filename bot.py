@@ -222,11 +222,19 @@ def obter_captcha(page, ocr, cfg):
 
 def realizar_login(page, ocr, cfg):
     print("Iniciando acesso ao portal CPROEIS...")
-    page.goto(cfg["url"], wait_until="networkidle")
+    try:
+        page.goto(cfg["url"], wait_until="domcontentloaded", timeout=60000)
+    except Exception:
+        page.goto(cfg["url"], timeout=60000)
     
     tipo_doc = cfg.get("tipo_documento", "CPF")
-    page.select_option("#ddlTipoAcesso", tipo_doc)
-    page.wait_for_selector("#txtLogin", state="visible")
+    try:
+        page.wait_for_selector("#ddlTipoAcesso", timeout=30000)
+        page.select_option("#ddlTipoAcesso", tipo_doc)
+    except Exception:
+        pass
+
+    page.wait_for_selector("#txtLogin", state="visible", timeout=30000)
     time.sleep(1)
 
     for tentativa in range(1, 11):
@@ -239,7 +247,10 @@ def realizar_login(page, ocr, cfg):
         page.fill("#TextCaptcha", texto_captcha)
         
         page.click("#btnEntrar")
-        page.wait_for_load_state("networkidle")
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=15000)
+        except Exception:
+            pass
         time.sleep(2)
         
         url_atual = page.url
@@ -525,10 +536,22 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=not cfg.get("modo_visivel", True),
-            args=["--start-maximized"]
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--start-maximized"
+            ]
         )
-        context = browser.new_context(no_viewport=True)
+        context = browser.new_context(
+            no_viewport=True,
+            ignore_https_errors=True,
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+        )
         page = context.new_page()
+        page.set_default_timeout(60000)
+        page.set_default_navigation_timeout(60000)
         
         try:
             sucesso_login = realizar_login(page, ocr, cfg)
