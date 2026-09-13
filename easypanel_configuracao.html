@@ -362,13 +362,13 @@
       </table>
 
       <h3>bloco bruto para copiar e colar no easypanel:</h3>
-      <div class="code-block">PORT=3000
-SECRET_KEY=cproeis_secret_key_producao_2026_segura
-INITIAL_MASTER_EMAIL=admin@cproeis.com
-INITIAL_MASTER_PASSWORD=admin123456
-PROEIS_URL=https://www.proeis.rj.gov.br/
+      <div class="code-block">PROEIS_URL=https://www.proeis.rj.gov.br/
+PORT=3000
 MODO_VISIVEL=false
 MODO_HOMOLOGACAO=true
+SECRET_KEY=BJXRSJcUJPfve5ZPoMa9tY61fY25MCK2g7Uopjr8ljhlAddawxFFIDIYZdVGuhlh
+INITIAL_MASTER_EMAIL=admin@cproeis.com
+INITIAL_MASTER_PASSWORD=admin123456
 DATABASE_URL=sqlite:////app/data/cproeis.db
 GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3.7-flash</div>
@@ -409,26 +409,45 @@ GEMINI_MODEL=gemini-3.7-flash</div>
         <h2>6. aba domains / portas</h2>
         <span class="badge">acesso externo</span>
       </div>
-      <p>configure o roteamento web no easypanel:</p>
+      <p>ao adicionar ou atualizar o domínio no modal <strong>atualizar domínio</strong> do easypanel, preencha exatamente assim:</p>
       <table>
         <thead>
           <tr>
-            <th>campo</th>
-            <th>configuração</th>
+            <th>campo no modal</th>
+            <th>valor a preencher</th>
+            <th>explicação</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong>port</strong></td>
+            <td><strong>HTTPS</strong></td>
+            <td><span class="code-inline">ativado</span></td>
+            <td>gera certificado ssl gratuito automaticamente</td>
+          </tr>
+          <tr>
+            <td><strong>Host *</strong></td>
+            <td>seu domínio ou subdomínio (ex: <span class="code-inline">cprsautomacao.ycwhxf.easypanel.host</span>)</td>
+            <td>endereço web da sua aplicação</td>
+          </tr>
+          <tr>
+            <td><strong>Caminho *</strong></td>
+            <td><span class="code-inline">/</span></td>
+            <td>rota raiz</td>
+          </tr>
+          <tr>
+            <td><strong>Protocolo *</strong></td>
+            <td><span class="code-inline">HTTP</span></td>
+            <td>comunicação interna do proxy com o container</td>
+          </tr>
+          <tr>
+            <td><strong>Porta *</strong></td>
             <td><span class="code-inline">3000</span></td>
+            <td>porta do backend uvicorn</td>
           </tr>
           <tr>
-            <td><strong>domain</strong></td>
-            <td>seu domínio ou subdomínio (ex: <span class="code-inline">bot.seudominio.com</span>)</td>
-          </tr>
-          <tr>
-            <td><strong>https / ssl</strong></td>
-            <td>ativado automaticamente pelo let's encrypt do easypanel</td>
+            <td><strong>Serviço Compose *</strong></td>
+            <td><span class="code-inline">app</span></td>
+            <td>nome do serviço definido no <span class="code-inline">docker-compose.yml</span></td>
           </tr>
         </tbody>
       </table>
