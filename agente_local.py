@@ -61,7 +61,7 @@ def montar_config_cliente(cliente, modo="homologacao"):
     cfg["intervalo_segundos"] = cliente.get("interval_seconds") or 6
     cfg["tentativas_maximas"] = cliente.get("max_attempts") or 120
     cfg["modo_homologacao"] = modo == "homologacao"
-    cfg["modo_visivel"] = True
+    cfg["modo_visivel"] = False
     return cfg
 
 def executar_bot_cliente(cliente, modo="homologacao"):
@@ -72,13 +72,13 @@ def executar_bot_cliente(cliente, modo="homologacao"):
     ocr = ddddocr.DdddOcr(show_ad=False)
     
     launch_options = {
-        "headless": not cfg.get("modo_visivel", True),
-        "args": ["--start-maximized"]
+        "headless": True,
+        "args": ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
     }
     
     with sync_playwright() as p:
         browser = p.chromium.launch(**launch_options)
-        context = browser.new_context(no_viewport=True, ignore_https_errors=True)
+        context = browser.new_context(ignore_https_errors=True)
         page = context.new_page()
         page.set_default_timeout(60000)
         page.set_default_navigation_timeout(60000)
@@ -106,13 +106,13 @@ def executar_consulta_cliente(cliente):
     ocr = ddddocr.DdddOcr(show_ad=False)
     
     launch_options = {
-        "headless": not cfg.get("modo_visivel", True),
-        "args": ["--start-maximized"]
+        "headless": True,
+        "args": ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
     }
     
     with sync_playwright() as p:
         browser = p.chromium.launch(**launch_options)
-        context = browser.new_context(no_viewport=True, ignore_https_errors=True)
+        context = browser.new_context(ignore_https_errors=True)
         page = context.new_page()
         page.set_default_timeout(60000)
         page.set_default_navigation_timeout(60000)
