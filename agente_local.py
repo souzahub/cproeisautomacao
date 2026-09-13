@@ -19,14 +19,34 @@ ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "luansouza88@gmail.com")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Souz@199133")
 
 def autenticar():
+    email = ADMIN_EMAIL
+    senha = ADMIN_PASSWORD
+    
     url = f"{SERVER_URL}/api/auth/login"
     try:
-        resp = requests.post(url, json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=15)
+        resp = requests.post(url, json={"email": email, "password": senha}, timeout=15)
         if resp.status_code == 200:
             return resp.json().get("access_token")
-        print(f"falha de autenticacao no servidor: {resp.text}")
     except Exception as e:
         print(f"erro ao conectar no servidor {SERVER_URL}: {str(e)}")
+        return None
+
+    print(f"\ncredenciais automaticas ({email}) nao foram aceitas pelo servidor.")
+    for tentativa in range(3):
+        print(f"\ntentativa {tentativa + 1}/3:")
+        email_digitado = input("digite seu email do painel web: ").strip()
+        senha_digitada = input("digite sua senha do painel web: ").strip()
+        
+        try:
+            resp = requests.post(url, json={"email": email_digitado, "password": senha_digitada}, timeout=15)
+            if resp.status_code == 200:
+                print("login efetuado com sucesso.")
+                return resp.json().get("access_token")
+            else:
+                print(f"email ou senha incorretos ({resp.text}).")
+        except Exception as e:
+            print(f"erro ao autenticar: {str(e)}")
+            
     return None
 
 def listar_clientes(token):
