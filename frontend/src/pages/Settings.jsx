@@ -27,6 +27,28 @@ export function Settings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [notification, setNotification] = useState({ type: "", text: "" })
+  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem("server_url") || "https://cprsautomacao.devsouza.online")
+  const [serverStatus, setServerStatus] = useState("verificando")
+  const [serverLatency, setServerLatency] = useState(null)
+  const [testingServer, setTestingServer] = useState(false)
+
+  async function checkServerConnection(urlToCheck) {
+    const target = urlToCheck || serverUrl
+    const start = Date.now()
+    try {
+      const resp = await fetch(`${target}/api/health`, { method: "GET" })
+      if (resp.ok) {
+        setServerLatency(Date.now() - start)
+        setServerStatus("online")
+      } else {
+        setServerStatus("offline")
+        setServerLatency(null)
+      }
+    } catch {
+      setServerStatus("offline")
+      setServerLatency(null)
+    }
+  }
 
   useEffect(() => {
     async function loadSettings() {
@@ -41,7 +63,15 @@ export function Settings() {
       }
     }
     loadSettings()
+    checkServerConnection()
   }, [])
+
+  async function handleTestServer() {
+    setTestingServer(true)
+    await checkServerConnection(serverUrl)
+    localStorage.setItem("server_url", serverUrl)
+    setTestingServer(false)
+  }
 
   function handleChange(field, value) {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -52,6 +82,7 @@ export function Settings() {
     setSaving(true)
     setNotification({ type: "", text: "" })
     try {
+      localStorage.setItem("server_url", serverUrl)
       const updated = await settingsApi.update(formData)
       setFormData(updated)
       setNotification({ type: "info", text: "configurações atualizadas" })
@@ -69,6 +100,48 @@ export function Settings() {
           {notification.text}
         </div>
       )}
+
+      <div className="card" style={{ marginBottom: "20px" }}>
+        <div className="card-header">
+          <div>
+            <h3 className="card-title">conexão com o servidor online</h3>
+            <p className="card-desc">status de comunicação da aplicação desktop com a api na nuvem</p>
+          </div>
+          <span className={`badge-pill ${serverStatus === "online" ? "badge-success" : serverStatus === "verificando" ? "badge-homologacao" : "badge-error"}`}>
+            {serverStatus === "online" ? "servidor online" : serverStatus === "verificando" ? "verificando..." : "servidor offline"}
+          </span>
+        </div>
+
+        <div className="grid-cols-2" style={{ alignItems: "flex-end" }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" htmlFor="server_url">endereço da api online</label>
+            <input
+              id="server_url"
+              className="form-input"
+              value={serverUrl}
+              onChange={(e) => setServerUrl(e.target.value)}
+              placeholder="https://cprsautomacao.devsouza.online"
+            />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", minHeight: "42px" }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleTestServer}
+              disabled={testingServer}
+            >
+              {testingServer ? "testando..." : "testar conexão"}
+            </button>
+
+            {serverLatency !== null && (
+              <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                latência: <strong style={{ color: "var(--text-primary)" }}>{serverLatency} ms</strong>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit}>
         <div className="card" style={{ marginBottom: "20px" }}>

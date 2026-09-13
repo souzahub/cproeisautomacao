@@ -1,7 +1,23 @@
-import React from "react"
-import { StatusBadge } from "./StatusBadge"
+import React, { useState, useEffect } from "react"
 
 export function Header({ title, onToggleSidebar, sidebarCollapsed, theme, onToggleTheme, onLogout }) {
+  const [serverOnline, setServerOnline] = useState(true)
+
+  useEffect(() => {
+    async function ping() {
+      const serverUrl = localStorage.getItem("server_url") || "https://cprsautomacao.devsouza.online"
+      try {
+        const resp = await fetch(`${serverUrl}/api/health`, { method: "GET" })
+        setServerOnline(resp.ok)
+      } catch {
+        setServerOnline(false)
+      }
+    }
+    ping()
+    const interval = setInterval(ping, 15000)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
     <header className="top-navbar">
       <div className="top-navbar-left">
@@ -21,6 +37,10 @@ export function Header({ title, onToggleSidebar, sidebarCollapsed, theme, onTogg
       </div>
 
       <div className="top-navbar-actions">
+        <span className={`badge-pill ${serverOnline ? "badge-success" : "badge-error"}`} style={{ fontSize: "11px" }}>
+          {serverOnline ? "nuvem conectada" : "nuvem desconectada"}
+        </span>
+
         <button
           className="theme-pill-btn"
           onClick={onToggleTheme}
