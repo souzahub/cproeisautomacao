@@ -73,7 +73,8 @@ export function AlertDialogContent({ size = "default", children, className = "",
         alignItems: "center",
         justifyContent: "center",
         padding: "16px",
-        backgroundColor: "rgba(0, 0, 0, 0.7)"
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        overflowY: "auto"
       }}
       onMouseDown={(e) => {
         mouseDownTargetRef.current = e.target
@@ -90,9 +91,11 @@ export function AlertDialogContent({ size = "default", children, className = "",
           width: "100%",
           maxWidth,
           position: "relative",
-          margin: 0,
+          margin: "auto",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.4)",
-          ...style
+          ...style,
+          maxHeight: style.maxHeight || "calc(100vh - 32px)",
+          overflowY: style.overflowY || "auto"
         }}
       >
         {children}
