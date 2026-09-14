@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react"
-import { clientsApi } from "../api/client"
+import { clientsApi, usersApi } from "../api/client"
 import { StatusBadge } from "../components/StatusBadge"
 import { Skeleton } from "../components/Skeleton"
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -25,9 +24,9 @@ import { Button } from "../components/ui/button"
 import { PasswordInput } from "../components/ui/password-input"
 import { InfoTooltip } from "../components/ui/info-tooltip"
 
-
 export function Clients() {
   const [clients, setClients] = useState([])
+  const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState(null)
@@ -40,6 +39,8 @@ export function Clients() {
     document_type: "CPF",
     document: "",
     password: "",
+    system_user: "",
+    system_password: "",
     convenio: "HCPM - RAS",
     preferred_events: "",
     only_listed_events: false,
@@ -52,25 +53,30 @@ export function Clients() {
     days_forward_max: 7,
     interval_seconds: 6,
     max_attempts: 120,
-    is_active: true
+    is_active: true,
+    user_id: null
   }
 
   const [formData, setFormData] = useState(initialFormState)
 
-  async function loadClients() {
+  async function loadData() {
     setLoading(true)
     try {
-      const list = await clientsApi.list()
-      setClients(list)
+      const [clientList, userList] = await Promise.all([
+        clientsApi.list(),
+        usersApi.list().catch(() => [])
+      ])
+      setClients(clientList || [])
+      setUsers(userList || [])
     } catch (err) {
-      setNotification({ type: "error", text: err.message || "falha ao carregar lista de clientes" })
+      setNotification({ type: "error", text: err.message || "falha ao carregar dados" })
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadClients()
+    loadData()
   }, [])
 
   function handleOpenCreate() {
@@ -86,6 +92,8 @@ export function Clients() {
       document_type: client.document_type || "CPF",
       document: client.document,
       password: client.password,
+      system_user: client.system_user || "",
+      system_password: "",
       convenio: client.convenio || "HCPM - RAS",
       preferred_events: client.preferred_events || "",
       only_listed_events: client.only_listed_events || false,
@@ -98,7 +106,8 @@ export function Clients() {
       days_forward_max: client.days_forward_max || 7,
       interval_seconds: client.interval_seconds || 6,
       max_attempts: client.max_attempts || 120,
-      is_active: client.is_active !== undefined ? client.is_active : true
+      is_active: client.is_active !== undefined ? client.is_active : true,
+      user_id: client.user_id !== undefined ? client.user_id : null
     })
     setDialogOpen(true)
   }
@@ -121,7 +130,7 @@ export function Clients() {
         setNotification({ type: "info", text: "novo cliente cadastrado" })
       }
       setDialogOpen(false)
-      await loadClients()
+      await loadData()
     } catch (err) {
       setNotification({ type: "error", text: err.message || "falha ao salvar cliente" })
     } finally {
@@ -136,7 +145,7 @@ export function Clients() {
       await clientsApi.delete(clientToDelete.id)
       setNotification({ type: "info", text: "cliente removido" })
       setClientToDelete(null)
-      await loadClients()
+      await loadData()
     } catch (err) {
       setNotification({ type: "error", text: err.message || "falha ao remover cliente" })
     } finally {
@@ -148,7 +157,7 @@ export function Clients() {
     setActionLoading(true)
     try {
       await clientsApi.update(client.id, { is_active: !client.is_active })
-      await loadClients()
+      await loadData()
     } catch (err) {
       setNotification({ type: "error", text: err.message || "falha ao alterar status" })
     } finally {
@@ -182,6 +191,7 @@ export function Clients() {
               <tr>
                 <th>nome</th>
                 <th>documento</th>
+                <th>login no sistema</th>
                 <th>convênio</th>
                 <th>eventos prioritários</th>
                 <th>período / meta de vagas</th>
@@ -192,13 +202,13 @@ export function Clients() {
             <tbody>
               {loading ? (
                 <>
-                  <tr><td colSpan="7"><Skeleton variant="row" /></td></tr>
-                  <tr><td colSpan="7"><Skeleton variant="row" /></td></tr>
-                  <tr><td colSpan="7"><Skeleton variant="row" /></td></tr>
+                  <tr><td colSpan="8"><Skeleton variant="row" /></td></tr>
+                  <tr><td colSpan="8"><Skeleton variant="row" /></td></tr>
+                  <tr><td colSpan="8"><Skeleton variant="row" /></td></tr>
                 </>
               ) : clients.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px" }}>
+                  <td colSpan="8" style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px" }}>
                     nenhum cliente cadastrado no momento
                   </td>
                 </tr>
@@ -207,6 +217,15 @@ export function Clients() {
                   <tr key={c.id}>
                     <td style={{ fontWeight: 600 }}>{c.name}</td>
                     <td>{c.document}</td>
+                    <td>
+                      {c.system_user ? (
+                        <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>
+                          {c.system_user}
+                        </span>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)" }}>apenas master</span>
+                      )}
+                    </td>
                     <td>{c.convenio || "padrão"}</td>
                     <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {c.preferred_events || "todos"}
@@ -269,12 +288,12 @@ export function Clients() {
               {editingClient ? "editar dados do cliente" : "cadastrar novo cliente"}
             </DialogTitle>
             <DialogDescription>
-              configure os dados de acesso ao portal, período de busca e meta de vagas
+              configure os dados de acesso ao portal, período de busca e credenciais de login
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit}>
-            <div className="grid-cols-2" style={{ marginBottom: "12px" }}>
+            <div className="grid-cols-3" style={{ marginBottom: "12px" }}>
               <div className="form-group">
                 <label className="form-label" htmlFor="cli_name">nome do cliente</label>
                 <input
@@ -282,14 +301,14 @@ export function Clients() {
                   className="form-input"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="ex: Dr. Lucas - Enfermagem"
+                  placeholder="ex: Dr. Lucas"
                   disabled={actionLoading}
                   autoFocus
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label" htmlFor="cli_doc_type">tipo de documento</label>
+                <label className="form-label" htmlFor="cli_doc_type">tipo documento</label>
                 <select
                   id="cli_doc_type"
                   className="form-select"
@@ -303,7 +322,7 @@ export function Clients() {
               </div>
 
               <div className="form-group">
-                <label className="form-label" htmlFor="cli_doc">número do documento</label>
+                <label className="form-label" htmlFor="cli_doc">número documento</label>
                 <input
                   id="cli_doc"
                   className="form-input"
@@ -313,16 +332,51 @@ export function Clients() {
                   disabled={actionLoading}
                 />
               </div>
+            </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="cli_pass">senha de acesso</label>
-                <PasswordInput
-                  id="cli_pass"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="senha do portal"
-                  disabled={actionLoading}
+            <div className="form-group" style={{ marginBottom: "12px" }}>
+              <label className="form-label" htmlFor="cli_pass">senha do portal proeis</label>
+              <PasswordInput
+                id="cli_pass"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="senha do portal proeis"
+                disabled={actionLoading}
+              />
+            </div>
+
+            <div style={{ padding: "12px", backgroundColor: "var(--bg-surface-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", marginBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                <span className="form-label" style={{ fontWeight: 600, marginBottom: 0 }}>acesso do cliente ao sistema</span>
+                <InfoTooltip
+                  title="login do cliente"
+                  text="defina o usuário e a senha para que este cliente possa entrar no sistema web/app e operar exclusivamente suas vagas."
                 />
+              </div>
+              <div className="grid-cols-2">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" htmlFor="cli_sys_user">usuário / login de acesso</label>
+                  <input
+                    id="cli_sys_user"
+                    className="form-input"
+                    value={formData.system_user}
+                    onChange={(e) => setFormData({ ...formData, system_user: e.target.value })}
+                    placeholder="ex: lucas_med ou CPF"
+                    disabled={actionLoading}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" htmlFor="cli_sys_pass">
+                    {editingClient ? "alterar senha no sistema" : "senha de acesso ao sistema"}
+                  </label>
+                  <PasswordInput
+                    id="cli_sys_pass"
+                    value={formData.system_password}
+                    onChange={(e) => setFormData({ ...formData, system_password: e.target.value })}
+                    placeholder={editingClient ? "deixe vazio para manter" : "senha para o cliente entrar"}
+                    disabled={actionLoading}
+                  />
+                </div>
               </div>
             </div>
 

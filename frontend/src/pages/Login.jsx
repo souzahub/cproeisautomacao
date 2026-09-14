@@ -15,13 +15,13 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
     e.preventDefault()
     setError("")
     if (!email || !password) {
-      setError("preencha email e senha para continuar")
+      setError("preencha usuário e senha para continuar")
       return
     }
 
     setLoading(true)
     try {
-      const data = await authApi.login(email, password)
+      const data = await authApi.login(email.trim(), password)
       localStorage.setItem("auth_token", data.access_token)
       localStorage.setItem("auth_user", JSON.stringify(data.user))
       onLoginSuccess(data.user)
@@ -76,21 +76,21 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
               )}
             </div>
             <h1 className="login-title">entrar na sua conta</h1>
-            <p className="login-desc">informe seus dados para acessar o painel administrativo</p>
+            <p className="login-desc">informe seus dados para acessar o painel</p>
           </div>
 
           {error && <div className="alert-error">{error}</div>}
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor="email">email</label>
+              <label className="form-label" htmlFor="email">usuário / login</label>
               <input
                 id="email"
-                type="email"
+                type="text"
                 className="form-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="exemplo@dominio.com"
+                placeholder="seu usuário ou login"
                 disabled={loading}
                 autoFocus
               />

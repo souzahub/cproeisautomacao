@@ -51,6 +51,8 @@ def write_env_file(updates: dict):
 
 @router.get("", response_model=BotSettingsSchema)
 def get_settings(current_user: User = Depends(get_current_user)):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Acesso restrito ao administrador.")
     env_data = read_env_file()
     return {
         "PROEIS_URL": env_data.get("PROEIS_URL", "https://www.proeis.rj.gov.br/"),
@@ -77,6 +79,8 @@ def get_settings(current_user: User = Depends(get_current_user)):
 
 @router.put("", response_model=BotSettingsSchema)
 def update_settings(settings_in: BotSettingsSchema, current_user: User = Depends(get_current_user)):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Acesso restrito ao administrador.")
     updates = {
         "PROEIS_URL": settings_in.PROEIS_URL or "https://www.proeis.rj.gov.br/",
         "TIPO_DOCUMENTO": settings_in.TIPO_DOCUMENTO or "CPF",

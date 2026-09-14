@@ -18,6 +18,8 @@ def run_migrations():
         inspector = inspect(engine)
         if "client_profiles" in inspector.get_table_names():
             columns = [c["name"] for c in inspector.get_columns("client_profiles")]
+            if "user_id" not in columns:
+                conn.execute(text("ALTER TABLE client_profiles ADD COLUMN user_id INTEGER"))
             if "tipo_data" not in columns:
                 conn.execute(text("ALTER TABLE client_profiles ADD COLUMN tipo_data VARCHAR DEFAULT 'dias_frente'"))
             if "data_inicio" not in columns:

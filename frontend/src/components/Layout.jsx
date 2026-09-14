@@ -8,11 +8,18 @@ import { Users } from "../pages/Users"
 import { Comprovantes } from "../pages/Comprovantes"
 
 export function Layout({ user, onLogout, theme, onToggleTheme }) {
+  const isMaster = user && user.role === "master"
   const [currentTab, setCurrentTab] = useState("dashboard")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem("sidebar_collapsed") === "true"
   })
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isMaster && (currentTab === "clients" || currentTab === "settings" || currentTab === "users")) {
+      setCurrentTab("dashboard")
+    }
+  }, [isMaster, currentTab])
 
   function toggleSidebar() {
     if (window.innerWidth <= 860) {

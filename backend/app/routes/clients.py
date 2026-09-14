@@ -4,13 +4,23 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, ClientProfile
 from ..schemas import ClientProfileCreate, ClientProfileUpdate, ClientProfileResponse
-from ..security import get_current_user
+from ..security import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
 
+def to_client_response(client: ClientProfile) -> ClientProfileResponse:
+    res = ClientProfileResponse.model_validate(client)
+    if client.user:
+        res.system_user = client.user.email
+    return res
+
 @router.get("", response_model=List[ClientProfileResponse])
 def list_clients(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(ClientProfile).order_by(ClientProfile.id.desc()).all()
+    if current_user.role == "master":
+        clients = db.query(ClientProfile).order_by(ClientProfile.id.desc()).all()
+    else:
+        clients = db.query(ClientProfile).filter(ClientProfile.user_id == current_user.id).order_by(ClientProfile.id.desc()).all()
+    return [to_client_response(c) for c in clients]
 
 @router.post("", response_model=ClientProfileResponse)
 def create_client(client_in: ClientProfileCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -20,7 +30,36 @@ def create_client(client_in: ClientProfileCreate, db: Session = Depends(get_db),
             detail="Nome, documento e senha sao obrigatorios."
         )
 
+    assigned_user_id = client_in.user_id if current_user.role == "master" else current_user.id
+
+    if current_user.role == "master" and client_in.system_user and client_in.system_user.strip():
+        username = client_in.system_user.strip()
+        existing_user = db.query(User).filter(User.email == username).first()
+        if existing_user:
+            if client_in.system_password:
+                existing_user.hashed_password = get_password_hash(client_in.system_password)
+            existing_user.name = client_in.name
+            assigned_user_id = existing_user.id
+        else:
+            if not client_in.system_password:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Informe a senha de acesso ao sistema para o novo usuario."
+                )
+            new_user = User(
+                email=username,
+                name=client_in.name,
+                hashed_password=get_password_hash(client_in.system_password),
+                role="operador",
+                is_active=True
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            assigned_user_id = new_user.id
+
     client = ClientProfile(
+        user_id=assigned_user_id,
         name=client_in.name,
         document_type=client_in.document_type or "CPF",
         document=client_in.document,
@@ -42,20 +81,59 @@ def create_client(client_in: ClientProfileCreate, db: Session = Depends(get_db),
     db.add(client)
     db.commit()
     db.refresh(client)
-    return client
+    return to_client_response(client)
 
 @router.get("/{client_id}", response_model=ClientProfileResponse)
 def get_client(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     client = db.query(ClientProfile).filter(ClientProfile.id == client_id).first()
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado.")
-    return client
+    if current_user.role != "master" and client.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso nao autorizado a este cliente.")
+    return to_client_response(client)
 
 @router.put("/{client_id}", response_model=ClientProfileResponse)
 def update_client(client_id: int, client_in: ClientProfileUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     client = db.query(ClientProfile).filter(ClientProfile.id == client_id).first()
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado.")
+    if current_user.role != "master" and client.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso nao autorizado a este cliente.")
+
+    if current_user.role == "master":
+        if client_in.system_user and client_in.system_user.strip():
+            username = client_in.system_user.strip()
+            if client.user:
+                client.user.email = username
+                if client_in.name:
+                    client.user.name = client_in.name
+                if client_in.system_password:
+                    client.user.hashed_password = get_password_hash(client_in.system_password)
+            else:
+                existing_user = db.query(User).filter(User.email == username).first()
+                if existing_user:
+                    if client_in.system_password:
+                        existing_user.hashed_password = get_password_hash(client_in.system_password)
+                    client.user_id = existing_user.id
+                else:
+                    if not client_in.system_password:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Informe a senha de acesso ao sistema para o novo usuario."
+                        )
+                    new_user = User(
+                        email=username,
+                        name=client_in.name or client.name,
+                        hashed_password=get_password_hash(client_in.system_password),
+                        role="operador",
+                        is_active=True
+                    )
+                    db.add(new_user)
+                    db.commit()
+                    db.refresh(new_user)
+                    client.user_id = new_user.id
+        elif client_in.user_id is not None:
+            client.user_id = client_in.user_id if client_in.user_id > 0 else None
 
     if client_in.name is not None:
         client.name = client_in.name
@@ -94,13 +172,15 @@ def update_client(client_id: int, client_in: ClientProfileUpdate, db: Session = 
 
     db.commit()
     db.refresh(client)
-    return client
+    return to_client_response(client)
 
 @router.delete("/{client_id}")
 def delete_client(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     client = db.query(ClientProfile).filter(ClientProfile.id == client_id).first()
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado.")
+    if current_user.role != "master" and client.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso nao autorizado a este cliente.")
 
     db.delete(client)
     db.commit()

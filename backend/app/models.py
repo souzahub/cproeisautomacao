@@ -1,5 +1,6 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from .database import Base
 
 class User(Base):
@@ -12,6 +13,8 @@ class User(Base):
     role = Column(String, default="operador")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    clients = relationship("ClientProfile", back_populates="user")
 
 class BotExecution(Base):
     __tablename__ = "bot_executions"
@@ -37,6 +40,7 @@ class ClientProfile(Base):
     __tablename__ = "client_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String, nullable=False, index=True)
     document_type = Column(String, default="CPF")
     document = Column(String, nullable=False, index=True)
@@ -56,3 +60,5 @@ class ClientProfile(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="clients")

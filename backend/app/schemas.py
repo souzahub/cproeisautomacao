@@ -39,6 +39,9 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 class ClientProfileCreate(BaseModel):
+    user_id: Optional[int] = None
+    system_user: Optional[str] = None
+    system_password: Optional[str] = None
     name: str
     document_type: Optional[str] = "CPF"
     document: str
@@ -58,6 +61,9 @@ class ClientProfileCreate(BaseModel):
     is_active: Optional[bool] = True
 
 class ClientProfileUpdate(BaseModel):
+    user_id: Optional[int] = None
+    system_user: Optional[str] = None
+    system_password: Optional[str] = None
     name: Optional[str] = None
     document_type: Optional[str] = None
     document: Optional[str] = None
@@ -78,6 +84,8 @@ class ClientProfileUpdate(BaseModel):
 
 class ClientProfileResponse(BaseModel):
     id: int
+    user_id: Optional[int] = None
+    system_user: Optional[str] = None
     name: str
     document_type: str
     document: str

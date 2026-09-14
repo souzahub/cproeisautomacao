@@ -252,7 +252,7 @@ export function Dashboard({ user, onNavigateTab }) {
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "16px 0", borderTop: "1px solid var(--border-subtle)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span className="form-label" style={{ fontWeight: 600, marginBottom: 0 }}>cliente para execução:</span>
-            {onNavigateTab && (
+            {isMaster && onNavigateTab && (
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
@@ -297,24 +297,26 @@ export function Dashboard({ user, onNavigateTab }) {
               </div>
             ) : (
               <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>
-                nenhum cliente selecionado
+                {!isMaster ? "nenhum perfil de cliente vinculado ao seu usuário" : "nenhum cliente selecionado"}
               </div>
             )}
 
-            <div style={{ display: "flex", gap: "8px" }}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setClientSearchOpen(true)}
-                disabled={isRunning || actionLoading || clients.length === 0}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}>
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                {selectedClient ? "trocar cliente" : "buscar cliente"}
-              </Button>
-            </div>
+            {isMaster && clients.length > 1 && (
+              <div style={{ display: "flex", gap: "8px" }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setClientSearchOpen(true)}
+                  disabled={isRunning || actionLoading || clients.length === 0}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}>
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  {selectedClient ? "trocar cliente" : "buscar cliente"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -656,7 +658,7 @@ export function Dashboard({ user, onNavigateTab }) {
           </div>
 
           <DialogFooter>
-            {onNavigateTab && (
+            {isMaster && onNavigateTab && (
               <Button
                 type="button"
                 variant="outline"
