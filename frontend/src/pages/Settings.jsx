@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react"
-import { settingsApi, getBaseUrl } from "../api/client"
+import { settingsApi, getBaseUrl, syncApi } from "../api/client"
+import { getSyncQueue, clearSyncQueue, getLastSyncTime } from "../api/sync"
 import { Skeleton } from "../components/Skeleton"
 import { PasswordInput } from "../components/ui/password-input"
 import { InfoTooltip } from "../components/ui/info-tooltip"
-
 
 export function Settings() {
   const [formData, setFormData] = useState({
@@ -31,6 +31,9 @@ export function Settings() {
   const [serverStatus, setServerStatus] = useState("verificando")
   const [serverLatency, setServerLatency] = useState(null)
   const [testingServer, setTestingServer] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [pendingQueue, setPendingQueue] = useState([])
+  const [lastSync, setLastSync] = useState(getLastSyncTime())
 
   async function checkServerConnection(urlToCheck) {
     const target = urlToCheck || serverUrl
@@ -51,6 +54,11 @@ export function Settings() {
   }
 
   useEffect(() => {
+    function updateQueue() {
+      setPendingQueue(getSyncQueue())
+      setLastSync(getLastSyncTime())
+    }
+
     async function loadSettings() {
       setLoading(true)
       try {
@@ -64,6 +72,13 @@ export function Settings() {
     }
     loadSettings()
     checkServerConnection()
+    updateQueue()
+
+    function handleQueueEvent() {
+      updateQueue()
+    }
+    window.addEventListener("cproeis:sync-queue-updated", handleQueueEvent)
+    return () => window.removeEventListener("cproeis:sync-queue-updated", handleQueueEvent)
   }, [])
 
   async function handleTestServer() {
@@ -76,10 +91,33 @@ export function Settings() {
   }
 
   function handleResetServerUrl() {
-    const defaultUrl = "https://cprsautomacao.devsouza.online"
+    const defaultUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL)) || ""
     setServerUrl(defaultUrl)
     localStorage.setItem("server_url", defaultUrl)
     checkServerConnection(defaultUrl)
+  }
+
+  async function handleSyncNow() {
+    if (syncing) return
+    setSyncing(true)
+    setNotification({ type: "", text: "" })
+    try {
+      const result = await syncApi.sync()
+      setPendingQueue(getSyncQueue())
+      setLastSync(result.lastSync)
+      setServerStatus("online")
+      setNotification({ type: "info", text: `${result.syncedCount} itens sincronizados com a nuvem` })
+    } catch (err) {
+      setNotification({ type: "error", text: err.message || "falha ao sincronizar com a nuvem" })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  function handleClearQueue() {
+    clearSyncQueue()
+    setPendingQueue([])
+    setNotification({ type: "info", text: "fila de sincronização local limpa" })
   }
 
   function handleChange(field, value) {
@@ -114,15 +152,15 @@ export function Settings() {
       <div className="card" style={{ marginBottom: "20px" }}>
         <div className="card-header">
           <div>
-            <h3 className="card-title">conexão com o servidor online</h3>
-            <p className="card-desc">endereço do servidor da api e banco de dados na nuvem</p>
+            <h3 className="card-title">conexão com o servidor e redundância</h3>
+            <p className="card-desc">endereço da api na nuvem e sincronização de dados locais offline</p>
           </div>
           <span className={`badge-pill ${serverStatus === "online" ? "badge-success" : serverStatus === "verificando" ? "badge-homologacao" : "badge-error"}`}>
             {serverStatus === "online" ? "servidor online" : serverStatus === "verificando" ? "verificando..." : "servidor offline"}
           </span>
         </div>
 
-        <div className="grid-cols-2" style={{ alignItems: "flex-end", gap: "16px" }}>
+        <div className="grid-cols-2" style={{ alignItems: "flex-end", gap: "16px", marginBottom: "16px" }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" htmlFor="server_url">endereço da api</label>
             <input
@@ -157,6 +195,41 @@ export function Settings() {
               <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                 latência: <strong style={{ color: "var(--text-primary)" }}>{serverLatency} ms</strong>
               </span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ padding: "12px 16px", backgroundColor: "var(--bg-surface-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+              redundância offline e sincronização
+            </span>
+            <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+              {pendingQueue.length > 0
+                ? `${pendingQueue.length} alterações salvas localmente aguardando sincronização com a nuvem`
+                : "todos os dados locais estão sincronizados com a nuvem"}
+              {lastSync ? ` (última: ${new Date(lastSync).toLocaleString("pt-BR")})` : ""}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSyncNow}
+              disabled={syncing}
+            >
+              {syncing ? "sincronizando..." : "sincronizar agora com a nuvem"}
+            </button>
+            {pendingQueue.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={handleClearQueue}
+                title="descartar alterações locais pendentes"
+              >
+                limpar fila
+              </button>
             )}
           </div>
         </div>

@@ -8,8 +8,6 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [showServerConfig, setShowServerConfig] = useState(false)
-  const [customServerUrl, setCustomServerUrl] = useState(() => localStorage.getItem("server_url") || "https://cprsautomacao.devsouza.online")
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -51,8 +49,8 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
                   type="button"
                   className="btn btn-ghost btn-icon"
                   onClick={onToggleTheme}
-                  title={theme === "light" ? "Alternar para tema escuro" : "Alternar para tema claro"}
-                  aria-label="Alternar tema"
+                  title={theme === "light" ? "alternar para tema escuro" : "alternar para tema claro"}
+                  aria-label="alternar tema"
                   style={{ width: "36px", height: "36px" }}
                 >
                   {theme === "light" ? (
@@ -75,47 +73,59 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
                 </button>
               )}
             </div>
-            <h1 className="login-title">entrar na sua conta</h1>
-            <p className="login-desc">informe seus dados para acessar o painel</p>
+
+            <h1 className="login-title">acesso à plataforma</h1>
+            <p className="login-subtitle">informe seu usuário e senha para acessar o painel</p>
           </div>
 
-          {error && <div className="alert-error">{error}</div>}
+          {error && (
+            <div className="login-error-banner" style={{ marginTop: "16px" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor="email">usuário / login</label>
+          <form onSubmit={handleSubmit} style={{ marginTop: "20px" }}>
+            <div className="form-group" style={{ marginBottom: "16px" }}>
+              <label className="form-label" htmlFor="login_email">usuário / e-mail</label>
               <input
-                id="email"
+                id="login_email"
                 type="text"
                 className="form-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu usuário ou login"
+                placeholder="seu usuário ou e-mail"
                 disabled={loading}
                 autoFocus
+                autoComplete="username"
               />
             </div>
 
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor="password">senha</label>
+            <div className="form-group" style={{ marginBottom: "16px" }}>
+              <label className="form-label" htmlFor="login_password">senha de acesso</label>
               <PasswordInput
-                id="password"
+                id="login_password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="sua senha"
                 disabled={loading}
+                autoComplete="current-password"
               />
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px" }}>
-              <label className="form-checkbox-group" style={{ margin: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+              <label className="form-checkbox-group" style={{ marginBottom: 0 }}>
                 <input
                   type="checkbox"
                   className="form-checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                 />
-                <span className="form-label" style={{ cursor: "pointer" }}>lembrar de mim</span>
+                <span className="form-label" style={{ cursor: "pointer", fontSize: "12px" }}>lembrar dados</span>
               </label>
             </div>
 
@@ -127,34 +137,6 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
             >
               {loading ? "entrando..." : "acessar painel"}
             </button>
-
-            <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--border-subtle)" }}>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setShowServerConfig(!showServerConfig)}
-                style={{ fontSize: "11px", color: "var(--text-secondary)", width: "100%", justifyContent: "center" }}
-              >
-                {showServerConfig ? "ocultar configuração do servidor" : "configurar endereço do servidor"}
-              </button>
-
-              {showServerConfig && (
-                <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <label className="form-label" style={{ fontSize: "11px" }}>url da api do servidor:</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    style={{ fontSize: "12px", padding: "6px 10px" }}
-                    value={customServerUrl}
-                    onChange={(e) => {
-                      setCustomServerUrl(e.target.value)
-                      localStorage.setItem("server_url", e.target.value)
-                    }}
-                    placeholder="https://cprsautomacao.devsouza.online"
-                  />
-                </div>
-              )}
-            </div>
           </form>
         </div>
       </div>

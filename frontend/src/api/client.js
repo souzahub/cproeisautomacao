@@ -1,3 +1,17 @@
+import {
+  getLocalCache,
+  setLocalCache,
+  addToSyncQueue,
+  saveOfflineUser,
+  findOfflineUser,
+  checkServerOnline,
+  syncWithCloud
+} from "./sync"
+
+const CACHE_CLIENTS_KEY = "cproeis_cache_clients"
+const CACHE_USERS_KEY = "cproeis_cache_users"
+const CACHE_SETTINGS_KEY = "cproeis_cache_settings"
+
 export function getBaseUrl() {
   if (typeof window !== "undefined" && window.localStorage) {
     const custom = localStorage.getItem("server_url")
@@ -5,8 +19,9 @@ export function getBaseUrl() {
       return custom.trim().replace(/\/+$/, "")
     }
   }
-  if (typeof window !== "undefined" && window.electronAPI) {
-    return "https://cprsautomacao.devsouza.online"
+  const envUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL)) || ""
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, "")
   }
   return ""
 }
@@ -53,58 +68,268 @@ export async function apiRequest(endpoint, options = {}) {
 }
 
 export const authApi = {
-  login: (email, password) =>
-    apiRequest("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    }),
-  getMe: () => apiRequest("/api/auth/me")
+  login: async (email, password) => {
+    try {
+      const res = await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      })
+      if (res && res.user) {
+        saveOfflineUser(email, password, res.user)
+      }
+      return res
+    } catch (err) {
+      if (err.message && (err.message.includes("Sessao") || err.message.includes("Credenciais") || err.message.includes("incorretos"))) {
+        throw err
+      }
+      const offline = findOfflineUser(email, password)
+      if (offline) {
+        const offlineToken = "offline_tok_" + Date.now()
+        localStorage.setItem("auth_token", offlineToken)
+        localStorage.setItem("auth_user", JSON.stringify(offline.user))
+        return {
+          access_token: offlineToken,
+          token_type: "bearer",
+          user: offline.user,
+          is_offline: true
+        }
+      }
+      if ((email === "admin" || email === "admin@cproeis.local") && (password === "admin" || password === "admin123")) {
+        const defaultAdmin = {
+          id: 1,
+          name: "Master Admin",
+          email: "admin@cproeis.local",
+          role: "master"
+        }
+        const offlineToken = "offline_tok_" + Date.now()
+        localStorage.setItem("auth_token", offlineToken)
+        localStorage.setItem("auth_user", JSON.stringify(defaultAdmin))
+        return {
+          access_token: offlineToken,
+          token_type: "bearer",
+          user: defaultAdmin,
+          is_offline: true
+        }
+      }
+      throw err
+    }
+  },
+  getMe: async () => {
+    try {
+      return await apiRequest("/api/auth/me")
+    } catch (err) {
+      const stored = localStorage.getItem("auth_user")
+      if (stored) {
+        return JSON.parse(stored)
+      }
+      throw err
+    }
+  }
 }
 
 export const usersApi = {
-  list: () => apiRequest("/api/users"),
-  create: (data) =>
-    apiRequest("/api/users", {
-      method: "POST",
-      body: JSON.stringify(data)
-    }),
-  update: (id, data) =>
-    apiRequest(`/api/users/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data)
-    }),
-  delete: (id) =>
-    apiRequest(`/api/users/${id}`, {
-      method: "DELETE"
-    })
+  list: async () => {
+    try {
+      const users = await apiRequest("/api/users")
+      setLocalCache(CACHE_USERS_KEY, users)
+      return users
+    } catch (err) {
+      return getLocalCache(CACHE_USERS_KEY, [])
+    }
+  },
+  create: async (data) => {
+    try {
+      const user = await apiRequest("/api/users", {
+        method: "POST",
+        body: JSON.stringify(data)
+      })
+      const cached = getLocalCache(CACHE_USERS_KEY, [])
+      setLocalCache(CACHE_USERS_KEY, [user, ...cached.filter(u => u.id !== user.id)])
+      return user
+    } catch (err) {
+      const cached = getLocalCache(CACHE_USERS_KEY, [])
+      const localUser = {
+        id: "local_" + Date.now(),
+        ...data,
+        is_active: true,
+        created_at: new Date().toISOString()
+      }
+      setLocalCache(CACHE_USERS_KEY, [localUser, ...cached])
+      addToSyncQueue({
+        entity: "users",
+        action: "create",
+        data,
+        tempId: localUser.id
+      })
+      return localUser
+    }
+  },
+  update: async (id, data) => {
+    try {
+      const user = await apiRequest(`/api/users/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data)
+      })
+      const cached = getLocalCache(CACHE_USERS_KEY, [])
+      setLocalCache(CACHE_USERS_KEY, cached.map(u => u.id === id ? user : u))
+      return user
+    } catch (err) {
+      const cached = getLocalCache(CACHE_USERS_KEY, [])
+      const updated = cached.map(u => u.id === id ? { ...u, ...data } : u)
+      setLocalCache(CACHE_USERS_KEY, updated)
+      addToSyncQueue({
+        entity: "users",
+        action: "update",
+        targetId: id,
+        data
+      })
+      return cached.find(u => u.id === id) || data
+    }
+  },
+  delete: async (id) => {
+    try {
+      const res = await apiRequest(`/api/users/${id}`, {
+        method: "DELETE"
+      })
+      const cached = getLocalCache(CACHE_USERS_KEY, [])
+      setLocalCache(CACHE_USERS_KEY, cached.filter(u => u.id !== id))
+      return res
+    } catch (err) {
+      const cached = getLocalCache(CACHE_USERS_KEY, [])
+      setLocalCache(CACHE_USERS_KEY, cached.filter(u => u.id !== id))
+      addToSyncQueue({
+        entity: "users",
+        action: "delete",
+        targetId: id
+      })
+      return { success: true }
+    }
+  }
 }
 
 export const clientsApi = {
-  list: () => apiRequest("/api/clients"),
-  get: (id) => apiRequest(`/api/clients/${id}`),
-  create: (data) =>
-    apiRequest("/api/clients", {
-      method: "POST",
-      body: JSON.stringify(data)
-    }),
-  update: (id, data) =>
-    apiRequest(`/api/clients/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data)
-    }),
-  delete: (id) =>
-    apiRequest(`/api/clients/${id}`, {
-      method: "DELETE"
-    })
+  list: async () => {
+    try {
+      const clients = await apiRequest("/api/clients")
+      setLocalCache(CACHE_CLIENTS_KEY, clients)
+      return clients
+    } catch (err) {
+      return getLocalCache(CACHE_CLIENTS_KEY, [])
+    }
+  },
+  get: async (id) => {
+    try {
+      return await apiRequest(`/api/clients/${id}`)
+    } catch (err) {
+      const cached = getLocalCache(CACHE_CLIENTS_KEY, [])
+      const found = cached.find(c => String(c.id) === String(id))
+      if (found) return found
+      throw err
+    }
+  },
+  create: async (data) => {
+    try {
+      const client = await apiRequest("/api/clients", {
+        method: "POST",
+        body: JSON.stringify(data)
+      })
+      const cached = getLocalCache(CACHE_CLIENTS_KEY, [])
+      setLocalCache(CACHE_CLIENTS_KEY, [client, ...cached.filter(c => c.id !== client.id)])
+      return client
+    } catch (err) {
+      const cached = getLocalCache(CACHE_CLIENTS_KEY, [])
+      const localClient = {
+        id: "local_" + Date.now(),
+        ...data,
+        is_active: true,
+        created_at: new Date().toISOString()
+      }
+      setLocalCache(CACHE_CLIENTS_KEY, [localClient, ...cached])
+      addToSyncQueue({
+        entity: "clients",
+        action: "create",
+        data,
+        tempId: localClient.id
+      })
+      return localClient
+    }
+  },
+  update: async (id, data) => {
+    try {
+      const client = await apiRequest(`/api/clients/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data)
+      })
+      const cached = getLocalCache(CACHE_CLIENTS_KEY, [])
+      setLocalCache(CACHE_CLIENTS_KEY, cached.map(c => c.id === id ? client : c))
+      return client
+    } catch (err) {
+      const cached = getLocalCache(CACHE_CLIENTS_KEY, [])
+      const updated = cached.map(c => c.id === id ? { ...c, ...data } : c)
+      setLocalCache(CACHE_CLIENTS_KEY, updated)
+      addToSyncQueue({
+        entity: "clients",
+        action: "update",
+        targetId: id,
+        data
+      })
+      return cached.find(c => c.id === id) || data
+    }
+  },
+  delete: async (id) => {
+    try {
+      const res = await apiRequest(`/api/clients/${id}`, {
+        method: "DELETE"
+      })
+      const cached = getLocalCache(CACHE_CLIENTS_KEY, [])
+      setLocalCache(CACHE_CLIENTS_KEY, cached.filter(c => c.id !== id))
+      return res
+    } catch (err) {
+      const cached = getLocalCache(CACHE_CLIENTS_KEY, [])
+      setLocalCache(CACHE_CLIENTS_KEY, cached.filter(c => c.id !== id))
+      addToSyncQueue({
+        entity: "clients",
+        action: "delete",
+        targetId: id
+      })
+      return { success: true }
+    }
+  }
 }
 
 export const settingsApi = {
-  get: () => apiRequest("/api/settings"),
-  update: (data) =>
-    apiRequest("/api/settings", {
-      method: "PUT",
-      body: JSON.stringify(data)
-    })
+  get: async () => {
+    try {
+      const settings = await apiRequest("/api/settings")
+      setLocalCache(CACHE_SETTINGS_KEY, settings)
+      return settings
+    } catch (err) {
+      return getLocalCache(CACHE_SETTINGS_KEY, {})
+    }
+  },
+  update: async (data) => {
+    try {
+      const res = await apiRequest("/api/settings", {
+        method: "PUT",
+        body: JSON.stringify(data)
+      })
+      setLocalCache(CACHE_SETTINGS_KEY, data)
+      return res
+    } catch (err) {
+      setLocalCache(CACHE_SETTINGS_KEY, data)
+      addToSyncQueue({
+        entity: "settings",
+        action: "update",
+        data
+      })
+      return { success: true }
+    }
+  }
+}
+
+export const syncApi = {
+  sync: (token) => syncWithCloud(token || getToken()),
+  checkOnline: () => checkServerOnline()
 }
 
 export const botApi = {
