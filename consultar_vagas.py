@@ -28,26 +28,59 @@ def consultar():
     if cfg.get("proxy"):
         launch_options["proxy"] = {"server": cfg["proxy"]}
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(**launch_options)
-        context = browser.new_context(
-            no_viewport=True,
-            ignore_https_errors=True,
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
-        page.set_default_timeout(60000)
-        page.set_default_navigation_timeout(60000)
-        
-        try:
-            if not realizar_login(page, ocr, cfg):
-                print("Nao foi possivel efetuar login. Verifique suas credenciais.")
-                return
+    def executar_consulta(usar_proxy=True):
+        opts = dict(launch_options)
+        if not usar_proxy and "proxy" in opts:
+            del opts["proxy"]
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(**opts)
+            context = browser.new_context(
+                no_viewport=True,
+                ignore_https_errors=True,
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+            )
+            page = context.new_page()
+            page.set_default_timeout(60000)
+            page.set_default_navigation_timeout(60000)
+            
+            try:
+                if not realizar_login(page, ocr, cfg):
+                    print("Nao foi possivel efetuar login. Verifique suas credenciais.")
+                    return False
+            except Exception as e:
+                if "ERR_PROXY" in str(e) or "proxy" in str(e).lower():
+                    print("Proxy offline ou recusado. Tentando conexao direta...")
+                    browser.close()
+                    return "retry_direct"
+                print(f"Erro no acesso: {str(e)}")
+                return False
 
             print("Carregando lista de eventos cadastrados...")
             btn_vol = page.query_selector("a:has-text('Voluntários'), a:has-text('Voluntarios')")
             if btn_vol:
                 btn_vol.click()
+                time.sleep(2)
+                page.wait_for_load_state("networkidle")
+
+            btn_meus = page.query_selector("a:has-text('Meus Eventos')")
+            if btn_meus:
+                btn_meus.click()
+                time.sleep(2)
+                page.wait_for_load_state("networkidle")
+
+            res = gerar_pdf_comprovante(page, cfg)
+            if res:
+                print(f"Consulta finalizada com sucesso! Comprovante gerado: {res}")
+            else:
+                print("Consulta concluida. Nenhuma inscricao ativa localizada ou falha ao gerar comprovante.")
+
+            browser.close()
+            return True
+
+    res = executar_consulta(usar_proxy=bool(cfg.get("proxy")))
+    if res == "retry_direct":
+        executar_consulta(usar_proxy=False)
                 try:
                     page.wait_for_load_state("domcontentloaded", timeout=15000)
                 except Exception:

@@ -642,35 +642,50 @@ def main():
             "--start-maximized"
         ]
     }
-    if cfg.get("proxy"):
-        launch_options["proxy"] = {"server": cfg["proxy"]}
+    def executar_bot(usar_proxy=True):
+        opts = dict(launch_options)
+        if not usar_proxy and "proxy" in opts:
+            del opts["proxy"]
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(**launch_options)
-        context = browser.new_context(
-            no_viewport=True,
-            ignore_https_errors=True,
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
-        page.set_default_timeout(60000)
-        page.set_default_navigation_timeout(60000)
-        
-        try:
-            sucesso_login = realizar_login(page, ocr, cfg)
-            if not sucesso_login:
-                print("Falha no login. Verifique as credenciais no .env.")
-                return
-
-            navegar_para_inscricao(page)
-            buscar_e_candidatar(page, ocr, cfg)
+        with sync_playwright() as p:
+            browser = p.chromium.launch(**opts)
+            context = browser.new_context(
+                no_viewport=True,
+                ignore_https_errors=True,
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+            )
+            page = context.new_page()
+            page.set_default_timeout(60000)
+            page.set_default_navigation_timeout(60000)
             
-        except Exception as e:
-            print(f"Ocorreu um erro durante a execucao: {str(e)}")
-        finally:
-            print("\nExecucao finalizada.")
-            time.sleep(5)
-            browser.close()
+            try:
+                sucesso_login = realizar_login(page, ocr, cfg)
+                if not sucesso_login:
+                    print("Falha no login. Verifique as credenciais no .env.")
+                    browser.close()
+                    return False
+
+                navegar_para_inscricao(page)
+                buscar_e_candidatar(page, ocr, cfg)
+                
+            except Exception as e:
+                if "ERR_PROXY" in str(e) or "proxy" in str(e).lower():
+                    print("Proxy offline ou recusado. Tentando conexao direta...")
+                    browser.close()
+                    return "retry_direct"
+                print(f"Ocorreu um erro durante a execucao: {str(e)}")
+            finally:
+                print("\nExecucao finalizada.")
+                time.sleep(2)
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+            return True
+
+    res = executar_bot(usar_proxy=bool(cfg.get("proxy")))
+    if res == "retry_direct":
+        executar_bot(usar_proxy=False)
 
 if __name__ == "__main__":
     main()
