@@ -178,5 +178,29 @@ export const botApi = {
 }
 
 export const comprovantesApi = {
-  list: () => apiRequest("/api/comprovantes")
+  list: async () => {
+    let remoteFiles = []
+    try {
+      remoteFiles = await apiRequest("/api/comprovantes")
+    } catch {}
+
+    let localFiles = []
+    if (typeof window !== "undefined" && window.electronAPI && window.electronAPI.listComprovantes) {
+      try {
+        localFiles = await window.electronAPI.listComprovantes()
+      } catch {}
+    }
+
+    const map = new Map()
+    localFiles.forEach((f) => map.set(f.name, f))
+    remoteFiles.forEach((f) => {
+      if (!map.has(f.name)) {
+        map.set(f.name, f)
+      }
+    })
+
+    const combined = Array.from(map.values())
+    combined.sort((a, b) => (a.modified_at < b.modified_at ? 1 : -1))
+    return combined
+  }
 }

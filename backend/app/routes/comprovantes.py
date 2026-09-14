@@ -29,6 +29,33 @@ def list_comprovantes(current_user: User = Depends(get_current_user)):
     files.sort(key=lambda x: x["modified_at"], reverse=True)
     return files
 
+from fastapi import UploadFile, File
+
+@router.post("/upload", response_model=ComprovanteFile)
+async def upload_comprovante(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Apenas arquivos PDF sao permitidos.")
+
+    COMPROVANTES_DIR.mkdir(parents=True, exist_ok=True)
+    clean_name = os.path.basename(file.filename)
+    dest_path = COMPROVANTES_DIR / clean_name
+
+    content = await file.read()
+    with open(dest_path, "wb") as f:
+        f.write(content)
+
+    stat = dest_path.stat()
+    mod_time = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+    return {
+        "name": clean_name,
+        "size_bytes": stat.st_size,
+        "modified_at": mod_time,
+        "download_url": f"/api/comprovantes/{clean_name}"
+    }
+
 @router.get("/{filename}")
 def download_comprovante(
     filename: str,

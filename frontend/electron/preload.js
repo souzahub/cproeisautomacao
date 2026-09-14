@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   startConsult: (clientData) => ipcRenderer.invoke("bot:consult", { clientData }),
   stopBot: () => ipcRenderer.invoke("bot:stop"),
   getStatus: () => ipcRenderer.invoke("bot:status"),
+  listComprovantes: () => ipcRenderer.invoke("comprovantes:list"),
+  openComprovante: (filePath) => ipcRenderer.invoke("comprovantes:open", filePath),
   onLog: (callback) => {
     const subscription = (_event, value) => callback(value)
     ipcRenderer.on("bot:log", subscription)

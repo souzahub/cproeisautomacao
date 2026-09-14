@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { comprovantesApi } from "../api/client"
+import { comprovantesApi, getBaseUrl } from "../api/client"
 import { Skeleton } from "../components/Skeleton"
 
 export function Comprovantes() {
@@ -32,8 +32,13 @@ export function Comprovantes() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
   }
 
-  async function handleDownload(filename) {
-    setDownloadingFile(filename)
+  async function handleOpenOrDownload(item) {
+    if (item.is_local && window.electronAPI && window.electronAPI.openComprovante) {
+      const res = await window.electronAPI.openComprovante(item.local_path || item.name)
+      if (res && res.success) return
+    }
+
+    setDownloadingFile(item.name)
     setErrorMsg("")
     try {
       const token = localStorage.getItem("auth_token")
@@ -42,7 +47,8 @@ export function Comprovantes() {
         headers["Authorization"] = `Bearer ${token}`
       }
 
-      const response = await fetch(`/api/comprovantes/${encodeURIComponent(filename)}`, {
+      const baseUrl = getBaseUrl()
+      const response = await fetch(`${baseUrl}/api/comprovantes/${encodeURIComponent(item.name)}`, {
         headers
       })
 
@@ -54,7 +60,7 @@ export function Comprovantes() {
       const downloadUrl = window.URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = downloadUrl
-      link.download = filename
+      link.download = item.name
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -118,10 +124,10 @@ export function Comprovantes() {
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
-                        onClick={() => handleDownload(item.name)}
+                        onClick={() => handleOpenOrDownload(item)}
                         disabled={downloadingFile === item.name}
                       >
-                        {downloadingFile === item.name ? "baixando..." : "baixar PDF"}
+                        {downloadingFile === item.name ? "baixando..." : item.is_local ? "abrir PDF" : "baixar PDF"}
                       </button>
                     </td>
                   </tr>

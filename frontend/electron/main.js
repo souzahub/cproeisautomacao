@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron")
+const { app, BrowserWindow, ipcMain, shell } = require("electron")
 const path = require("path")
 const { spawn } = require("child_process")
 const fs = require("fs")
@@ -244,6 +244,46 @@ ipcMain.handle("bot:consult", async (_event, { clientData }) => {
   })
 
   return { success: true }
+})
+
+ipcMain.handle("comprovantes:list", async () => {
+  const rootDir = getProjectRoot()
+  const compDir = path.join(rootDir, "comprovantes")
+  const results = []
+  if (fs.existsSync(compDir)) {
+    const entries = fs.readdirSync(compDir)
+    entries.forEach((file) => {
+      if (file.toLowerCase().endsWith(".pdf")) {
+        const fullPath = path.join(compDir, file)
+        const stat = fs.statSync(fullPath)
+        const dateStr = new Date(stat.mtime).toISOString().replace("T", " ").substring(0, 19)
+        results.push({
+          name: file,
+          size_bytes: stat.size,
+          modified_at: dateStr,
+          local_path: fullPath,
+          download_url: `/api/comprovantes/${file}`,
+          is_local: true
+        })
+      }
+    })
+  }
+  results.sort((a, b) => (a.modified_at < b.modified_at ? 1 : -1))
+  return results
+})
+
+ipcMain.handle("comprovantes:open", async (_event, filePath) => {
+  if (filePath && fs.existsSync(filePath)) {
+    shell.openPath(filePath)
+    return { success: true }
+  }
+  const rootDir = getProjectRoot()
+  const fallback = path.join(rootDir, "comprovantes", filePath)
+  if (fs.existsSync(fallback)) {
+    shell.openPath(fallback)
+    return { success: true }
+  }
+  return { success: false }
 })
 
 ipcMain.handle("bot:stop", async () => {
