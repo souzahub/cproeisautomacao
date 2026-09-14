@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
-import { botApi, clientsApi } from "../api/client"
+import { botApi, clientsApi, usersApi } from "../api/client"
 import { StatusBadge } from "../components/StatusBadge"
 import { Skeleton } from "../components/Skeleton"
 import {
@@ -36,12 +36,19 @@ export function Dashboard({ user, onNavigateTab }) {
   const [logs, setLogs] = useState([])
   const [history, setHistory] = useState([])
   const [clients, setClients] = useState([])
+  const [usersList, setUsersList] = useState([])
   const [selectedClientId, setSelectedClientId] = useState("")
   const [clientSearchOpen, setClientSearchOpen] = useState(false)
   const [clientSearchQuery, setClientSearchQuery] = useState("")
   const [initialLoading, setInitialLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState(null)
+  const [historyFilterUser, setHistoryFilterUser] = useState("")
+  const [historyFilterClient, setHistoryFilterClient] = useState("")
+  const [historyFilterStatus, setHistoryFilterStatus] = useState("todos")
+  const [historyFilterMode, setHistoryFilterMode] = useState("todos")
+  const [historySearchQuery, setHistorySearchQuery] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
   const logTerminalRef = useRef(null)
 
@@ -56,6 +63,14 @@ export function Dashboard({ user, onNavigateTab }) {
           return String(clientList[0].id)
         })
       }
+    } catch (err) {}
+  }
+
+  async function fetchUsers() {
+    if (!isMaster) return
+    try {
+      const data = await usersApi.list()
+      setUsersList(data || [])
     } catch (err) {}
   }
 
@@ -88,7 +103,7 @@ export function Dashboard({ user, onNavigateTab }) {
   useEffect(() => {
     async function loadAll() {
       setInitialLoading(true)
-      await Promise.all([fetchClients(), fetchStatus(), fetchLogs(), fetchHistory()])
+      await Promise.all([fetchClients(), fetchUsers(), fetchStatus(), fetchLogs(), fetchHistory()])
       setInitialLoading(false)
     }
     loadAll()
@@ -184,6 +199,33 @@ export function Dashboard({ user, onNavigateTab }) {
       await botApi.clearLogs()
     } catch {}
   }
+
+  async function handleDeleteHistoryItem(id) {
+    try {
+      await botApi.deleteHistoryItem(id)
+      setHistory((prev) => prev.filter((item) => item.id !== id))
+      setItemToDelete(null)
+    } catch (err) {
+      setErrorMsg(err.message || "falha ao remover registro do histórico")
+    }
+  }
+
+  const filteredHistory = history.filter((item) => {
+    if (historyFilterStatus !== "todos" && item.status !== historyFilterStatus) return false
+    if (historyFilterMode !== "todos" && item.mode !== historyFilterMode) return false
+    if (historyFilterUser && !item.triggered_by?.toLowerCase().includes(historyFilterUser.toLowerCase())) return false
+    if (historyFilterClient && !item.client_name?.toLowerCase().includes(historyFilterClient.toLowerCase())) return false
+    if (historySearchQuery) {
+      const q = historySearchQuery.toLowerCase().trim()
+      const matchId = String(item.id).includes(q)
+      const matchClient = item.client_name?.toLowerCase().includes(q)
+      const matchUser = item.triggered_by?.toLowerCase().includes(q)
+      const matchMode = item.mode?.toLowerCase().includes(q)
+      const matchStatus = item.status?.toLowerCase().includes(q)
+      if (!matchId && !matchClient && !matchUser && !matchMode && !matchStatus) return false
+    }
+    return true
+  })
 
   const isRunning = statusInfo.status === "running"
   const selectedClient = clients.find(c => String(c.id) === String(selectedClientId))
@@ -521,7 +563,9 @@ export function Dashboard({ user, onNavigateTab }) {
         <div className="card-header">
           <div>
             <h3 className="card-title">histórico de execuções</h3>
-            <p className="card-desc">resumo das atividades registradas pelo sistema</p>
+            <p className="card-desc">
+              {isMaster ? "resumo completo de todas as execuções registradas no sistema" : "resumo das suas atividades e execuções registradas"}
+            </p>
           </div>
 
           {isMaster && history.length > 0 && (
@@ -535,6 +579,95 @@ export function Dashboard({ user, onNavigateTab }) {
           )}
         </div>
 
+        {isMaster && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center", marginBottom: "16px", padding: "12px", backgroundColor: "var(--bg-surface-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
+            <div style={{ flex: "1 1 180px", minWidth: "160px" }}>
+              <input
+                type="text"
+                className="form-input"
+                style={{ padding: "6px 10px", fontSize: "12px" }}
+                placeholder="buscar no histórico..."
+                value={historySearchQuery}
+                onChange={(e) => setHistorySearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div style={{ minWidth: "140px" }}>
+              <select
+                className="form-select"
+                style={{ padding: "6px 10px", fontSize: "12px" }}
+                value={historyFilterUser}
+                onChange={(e) => setHistoryFilterUser(e.target.value)}
+              >
+                <option value="">todos usuários</option>
+                {usersList.map((u) => (
+                  <option key={u.id} value={u.email}>{u.name || u.email}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ minWidth: "140px" }}>
+              <select
+                className="form-select"
+                style={{ padding: "6px 10px", fontSize: "12px" }}
+                value={historyFilterClient}
+                onChange={(e) => setHistoryFilterClient(e.target.value)}
+              >
+                <option value="">todos clientes</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ minWidth: "120px" }}>
+              <select
+                className="form-select"
+                style={{ padding: "6px 10px", fontSize: "12px" }}
+                value={historyFilterStatus}
+                onChange={(e) => setHistoryFilterStatus(e.target.value)}
+              >
+                <option value="todos">todos status</option>
+                <option value="completed">concluído</option>
+                <option value="error">erro</option>
+                <option value="running">executando</option>
+                <option value="stopped">interrompido</option>
+              </select>
+            </div>
+
+            <div style={{ minWidth: "120px" }}>
+              <select
+                className="form-select"
+                style={{ padding: "6px 10px", fontSize: "12px" }}
+                value={historyFilterMode}
+                onChange={(e) => setHistoryFilterMode(e.target.value)}
+              >
+                <option value="todos">todos modos</option>
+                <option value="homologacao">homologação</option>
+                <option value="producao">produção</option>
+                <option value="consulta">consulta</option>
+              </select>
+            </div>
+
+            {(historySearchQuery || historyFilterUser || historyFilterClient || historyFilterStatus !== "todos" || historyFilterMode !== "todos") && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: "11px", padding: "6px 10px" }}
+                onClick={() => {
+                  setHistorySearchQuery("")
+                  setHistoryFilterUser("")
+                  setHistoryFilterClient("")
+                  setHistoryFilterStatus("todos")
+                  setHistoryFilterMode("todos")
+                }}
+              >
+                limpar filtros
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="table-container">
           <table>
             <thead>
@@ -546,23 +679,24 @@ export function Dashboard({ user, onNavigateTab }) {
                 <th>iniciado por</th>
                 <th>início</th>
                 <th>término</th>
+                {isMaster && <th style={{ width: "70px", textAlign: "right" }}>ações</th>}
               </tr>
             </thead>
             <tbody>
               {initialLoading ? (
                 <>
-                  <tr><td colSpan="7"><Skeleton variant="row" /></td></tr>
-                  <tr><td colSpan="7"><Skeleton variant="row" /></td></tr>
-                  <tr><td colSpan="7"><Skeleton variant="row" /></td></tr>
+                  <tr><td colSpan={isMaster ? 8 : 7}><Skeleton variant="row" /></td></tr>
+                  <tr><td colSpan={isMaster ? 8 : 7}><Skeleton variant="row" /></td></tr>
+                  <tr><td colSpan={isMaster ? 8 : 7}><Skeleton variant="row" /></td></tr>
                 </>
-              ) : history.length === 0 ? (
+              ) : filteredHistory.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px" }}>
+                  <td colSpan={isMaster ? 8 : 7} style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px" }}>
                     nenhum registro de histórico encontrado
                   </td>
                 </tr>
               ) : (
-                history.map((item) => (
+                filteredHistory.map((item) => (
                   <tr key={item.id}>
                     <td style={{ fontWeight: 600 }}>#{item.id}</td>
                     <td>{item.client_name || "padrão"}</td>
@@ -571,6 +705,19 @@ export function Dashboard({ user, onNavigateTab }) {
                     <td>{item.triggered_by || "sistema"}</td>
                     <td>{item.started_at ? new Date(item.started_at).toLocaleString("pt-BR") : "-"}</td>
                     <td>{item.finished_at ? new Date(item.finished_at).toLocaleString("pt-BR") : "-"}</td>
+                    {isMaster && (
+                      <td style={{ textAlign: "right" }}>
+                        <button
+                          type="button"
+                          className="btn-pill-danger"
+                          style={{ padding: "3px 8px", fontSize: "11px" }}
+                          onClick={() => setItemToDelete(item)}
+                          title="remover registro do histórico"
+                        >
+                          remover
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -702,6 +849,25 @@ export function Dashboard({ user, onNavigateTab }) {
             </AlertDialogCancel>
             <AlertDialogAction variant="danger" onClick={handleClearHistory}>
               confirmar limpeza
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>remover registro de execução</AlertDialogTitle>
+            <AlertDialogDescription>
+              deseja remover a execução #{itemToDelete?.id} ({itemToDelete?.client_name || "padrão"}) do histórico? esta ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setItemToDelete(null)}>
+              cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction variant="danger" onClick={() => handleDeleteHistoryItem(itemToDelete?.id)}>
+              confirmar remoção
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

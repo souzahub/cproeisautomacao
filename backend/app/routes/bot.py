@@ -72,17 +72,33 @@ def clear_bot_logs(current_user: User = Depends(get_current_user)):
     return {"message": "Logs limpos com sucesso."}
 
 @router.get("/history", response_model=List[BotExecutionResponse])
-def get_execution_history(limit: int = Query(20, ge=1, le=100), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role == "master":
-        return db.query(BotExecution).order_by(BotExecution.id.desc()).limit(limit).all()
+def get_execution_history(
+    limit: int = Query(100, ge=1, le=500),
+    user: Optional[str] = Query(None),
+    client: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    mode: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    query = db.query(BotExecution)
+    if current_user.role != "master":
+        from ..models import ClientProfile
+        client_prof = db.query(ClientProfile).filter(ClientProfile.user_id == current_user.id).first()
+        client_name = client_prof.name if client_prof else ""
+        query = query.filter(
+            (BotExecution.triggered_by == current_user.email) | (BotExecution.client_name == client_name)
+        )
+    else:
+        if user:
+            query = query.filter(BotExecution.triggered_by.ilike(f"%{user}%"))
+        if client:
+            query = query.filter(BotExecution.client_name.ilike(f"%{client}%"))
+        if status:
+            query = query.filter(BotExecution.status == status)
+        if mode:
+            query = query.filter(BotExecution.mode == mode)
 
-    from ..models import ClientProfile
-    client = db.query(ClientProfile).filter(ClientProfile.user_id == current_user.id).first()
-    client_name = client.name if client else ""
-
-    query = db.query(BotExecution).filter(
-        (BotExecution.triggered_by == current_user.email) | (BotExecution.client_name == client_name)
-    )
     return query.order_by(BotExecution.id.desc()).limit(limit).all()
 
 @router.delete("/history")
@@ -91,3 +107,13 @@ def clear_execution_history(db: Session = Depends(get_db), current_master: User 
     db.query(BotExecution).delete()
     db.commit()
     return {"message": "Historico limpo."}
+
+@router.delete("/history/{execution_id}")
+def delete_execution_history_item(execution_id: int, db: Session = Depends(get_db), current_master: User = Depends(get_current_master)):
+    from fastapi import HTTPException, status
+    item = db.query(BotExecution).filter(BotExecution.id == execution_id).first()
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro de execucao nao encontrado.")
+    db.delete(item)
+    db.commit()
+    return {"message": "Registro removido."}

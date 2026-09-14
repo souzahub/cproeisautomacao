@@ -403,9 +403,22 @@ export const botApi = {
     }
     return apiRequest("/api/bot/logs/clear", { method: "POST" }).catch(() => ({}))
   },
-  getHistory: () => apiRequest("/api/bot/history"),
+  getHistory: (params = {}) => {
+    const query = new URLSearchParams()
+    if (params.user) query.append("user", params.user)
+    if (params.client) query.append("client", params.client)
+    if (params.status) query.append("status", params.status)
+    if (params.mode) query.append("mode", params.mode)
+    if (params.limit) query.append("limit", params.limit)
+    const qs = query.toString() ? `?${query.toString()}` : ""
+    return apiRequest(`/api/bot/history${qs}`)
+  },
   clearHistory: () =>
     apiRequest("/api/bot/history", {
+      method: "DELETE"
+    }),
+  deleteHistoryItem: (id) =>
+    apiRequest(`/api/bot/history/${id}`, {
       method: "DELETE"
     })
 }
