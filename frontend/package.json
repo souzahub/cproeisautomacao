@@ -26,6 +26,7 @@
   "build": {
     "appId": "com.cproeis.automacao",
     "productName": "CPROEIS Automacao",
+    "asar": false,
     "directories": {
       "output": "../dist_instalador"
     },
