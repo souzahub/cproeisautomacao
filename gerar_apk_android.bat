@@ -1,9 +1,32 @@
 @echo off
+setlocal enabledelayedexpansion
 title Gerador de APK Android CPROEIS
 echo ========================================================
 echo          CPROEIS - GERADOR DE APK ANDROID
 echo ========================================================
 echo.
+
+if exist "C:\Program Files\Android\Android Studio1\jbr\bin\java.exe" (
+    set "JAVA_HOME=C:\Program Files\Android\Android Studio1\jbr"
+) else if exist "C:\Program Files\Android\Android Studio\jbr\bin\java.exe" (
+    set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+) else if exist "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe" (
+    set "JAVA_HOME=%ProgramFiles%\Android\Android Studio\jbr"
+)
+
+if defined JAVA_HOME (
+    set "PATH=%JAVA_HOME%\bin;%PATH%"
+)
+
+if exist "%LOCALAPPDATA%\Android\Sdk" (
+    set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
+)
+
+if not exist "%~dp0frontend\android\local.properties" (
+    if defined ANDROID_HOME (
+        echo sdk.dir=%ANDROID_HOME:\=\\%> "%~dp0frontend\android\local.properties"
+    )
+)
 
 cd /d "%~dp0frontend"
 echo [1/3] Compilando frontend e sincronizando com Android...
@@ -30,7 +53,7 @@ echo.
 echo [3/3] Organizando arquivo APK na pasta de saida...
 cd /d "%~dp0"
 if not exist "%~dp0dist_apk" mkdir "%~dp0dist_apk"
-copy /y "%~dp0frontend\android\app\build\outputs\apk\debug\app-debug.apk" "%~dp0dist_apk\CPROEIS_Automacao.apk"
+copy /y "%~dp0frontend\android\app\build\outputs\apk\debug\app-debug.apk" "%~dp0dist_apk\CPROEIS_Automacao.apk" >nul
 
 echo.
 echo ========================================================

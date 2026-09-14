@@ -23,7 +23,10 @@ export function getBaseUrl() {
   if (envUrl && envUrl.trim()) {
     return envUrl.trim().replace(/\/+$/, "")
   }
-  return ""
+  if (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.startsWith("http") && !window.location.origin.includes("localhost") && !window.location.origin.includes("127.0.0.1")) {
+    return window.location.origin
+  }
+  return "https://cprsautomacao.devsouza.online"
 }
 
 function getToken() {
