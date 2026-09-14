@@ -114,7 +114,10 @@ export function Users({ currentUser }) {
       if (editUserData.password && editUserData.password.trim()) {
         payload.password = editUserData.password.trim()
       }
-      await usersApi.update(editUserData.id, payload)
+      const updated = await usersApi.update(editUserData.id, payload)
+      if (currentUser && editUserData.id === currentUser.id) {
+        localStorage.setItem("auth_user", JSON.stringify(updated))
+      }
       setEditDialogOpen(false)
       setNotification({ type: "info", text: "usuário atualizado" })
       await loadUsers()

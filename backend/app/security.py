@@ -39,13 +39,19 @@ def verify_token_string(token: str, db: Session) -> User:
     )
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("user_id")
         email: str = payload.get("sub")
-        if email is None:
+        if user_id is None and email is None:
             raise credentials_exception
     except Exception:
         raise credentials_exception
 
-    user = db.query(User).filter(User.email == email).first()
+    user = None
+    if user_id is not None:
+        user = db.query(User).filter(User.id == user_id).first()
+    if user is None and email:
+        user = db.query(User).filter(User.email == email).first()
+
     if user is None:
         raise credentials_exception
     if not user.is_active:

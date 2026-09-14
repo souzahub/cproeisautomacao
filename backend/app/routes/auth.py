@@ -21,7 +21,7 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Conta desativada."
         )
-    token = create_access_token({"sub": user.email, "role": user.role})
+    token = create_access_token({"sub": user.email, "user_id": user.id, "role": user.role})
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -41,7 +41,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Conta desativada."
         )
-    token = create_access_token({"sub": user.email, "role": user.role})
+    token = create_access_token({"sub": user.email, "user_id": user.id, "role": user.role})
     return {
         "access_token": token,
         "token_type": "bearer",
