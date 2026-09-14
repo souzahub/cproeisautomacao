@@ -12,14 +12,23 @@ router = APIRouter(prefix="/api/bot", tags=["bot"])
 @router.post("/start")
 def start_bot(req: BotStartRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     target_client_id = req.client_id
+    from ..models import ClientProfile
     if current_user.role != "master":
-        from ..models import ClientProfile
         client = db.query(ClientProfile).filter(ClientProfile.user_id == current_user.id).first()
+        if not client and current_user.name:
+            client = db.query(ClientProfile).filter(ClientProfile.name.ilike(f"%{current_user.name}%")).first()
+        if not client and current_user.email:
+            client = db.query(ClientProfile).filter(ClientProfile.system_user == current_user.email).first()
+        if not client and req.client_id:
+            client = db.query(ClientProfile).filter(ClientProfile.id == req.client_id).first()
+        if not client:
+            client = db.query(ClientProfile).filter(ClientProfile.is_active == True).first()
+
         if not client:
             from fastapi import HTTPException, status
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nenhum perfil de cliente vinculado a este operador."
+                detail="Nenhum perfil de cliente cadastrado ou vinculado para execução."
             )
         target_client_id = client.id
 
@@ -30,14 +39,23 @@ def start_bot(req: BotStartRequest, db: Session = Depends(get_db), current_user:
 @router.post("/consult")
 def consult_vagas(req: BotStartRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     target_client_id = req.client_id
+    from ..models import ClientProfile
     if current_user.role != "master":
-        from ..models import ClientProfile
         client = db.query(ClientProfile).filter(ClientProfile.user_id == current_user.id).first()
+        if not client and current_user.name:
+            client = db.query(ClientProfile).filter(ClientProfile.name.ilike(f"%{current_user.name}%")).first()
+        if not client and current_user.email:
+            client = db.query(ClientProfile).filter(ClientProfile.system_user == current_user.email).first()
+        if not client and req.client_id:
+            client = db.query(ClientProfile).filter(ClientProfile.id == req.client_id).first()
+        if not client:
+            client = db.query(ClientProfile).filter(ClientProfile.is_active == True).first()
+
         if not client:
             from fastapi import HTTPException, status
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nenhum perfil de cliente vinculado a este operador."
+                detail="Nenhum perfil de cliente cadastrado ou vinculado para execução."
             )
         target_client_id = client.id
 
