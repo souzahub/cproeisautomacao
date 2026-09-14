@@ -932,15 +932,16 @@ tr:hover td {
   }
 
   .top-navbar {
-    padding: max(env(safe-area-inset-top, 0px), 8px) 14px 8px 14px;
+    padding: max(env(safe-area-inset-top, 0px), 16px) 14px 10px 14px;
     height: auto;
-    min-height: 56px;
+    min-height: 60px;
     flex-wrap: wrap;
     gap: 8px;
   }
 
   .top-navbar-actions {
     gap: 6px;
+    flex-wrap: wrap;
   }
 
   .header-logout-desktop {
