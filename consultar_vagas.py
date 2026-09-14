@@ -47,88 +47,82 @@ def consultar():
             try:
                 if not realizar_login(page, ocr, cfg):
                     print("Nao foi possivel efetuar login. Verifique suas credenciais.")
+                    browser.close()
                     return False
+
+                print("Carregando lista de eventos cadastrados...")
+                btn_vol = page.query_selector("a:has-text('Voluntários'), a:has-text('Voluntarios')")
+                if btn_vol:
+                    btn_vol.click()
+                    time.sleep(2)
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=15000)
+                    except Exception:
+                        pass
+
+                btn_meus = page.query_selector("a:has-text('Meus Eventos')")
+                if btn_meus:
+                    btn_meus.click()
+                    time.sleep(2)
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=15000)
+                    except Exception:
+                        pass
+
+                chk_mes = page.query_selector("#chkEveMes")
+                if chk_mes:
+                    chk_mes.click()
+                    time.sleep(2)
+                    try:
+                        page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    except Exception:
+                        pass
+
+                textarea = page.query_selector("#txtEveVoluntario")
+                conteudo = textarea.input_value() if textarea else ""
+                
+                if conteudo.strip():
+                    print("\n" + "="*60)
+                    print("          VAGAS CONFIRMADAS NO CPROEIS")
+                    print("="*60 + "\n")
+                    
+                    linhas = [l.strip() for l in conteudo.split("\n") if l.strip()]
+                    for linha in linhas:
+                        if "====" in linha:
+                            print("-" * 60)
+                        else:
+                            print(linha)
+                    print("\n" + "="*60)
+                else:
+                    print("Nenhum evento registrado encontrado no periodo.")
+
+                caminho_pdf = gerar_pdf_comprovante(page, cfg)
+                if caminho_pdf:
+                    print(f"Comprovante PDF gerado com sucesso: {caminho_pdf}")
+                else:
+                    print("Consulta finalizada.")
+
+                browser.close()
+                return True
+
             except Exception as e:
                 if "ERR_PROXY" in str(e) or "proxy" in str(e).lower():
                     print("Proxy offline ou recusado. Tentando conexao direta...")
-                    browser.close()
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
                     return "retry_direct"
-                print(f"Erro no acesso: {str(e)}")
+                print(f"Ocorreu um erro na consulta: {str(e)}")
+                try:
+                    browser.close()
+                except Exception:
+                    pass
                 return False
-
-            print("Carregando lista de eventos cadastrados...")
-            btn_vol = page.query_selector("a:has-text('Voluntários'), a:has-text('Voluntarios')")
-            if btn_vol:
-                btn_vol.click()
-                time.sleep(2)
-                page.wait_for_load_state("networkidle")
-
-            btn_meus = page.query_selector("a:has-text('Meus Eventos')")
-            if btn_meus:
-                btn_meus.click()
-                time.sleep(2)
-                page.wait_for_load_state("networkidle")
-
-            res = gerar_pdf_comprovante(page, cfg)
-            if res:
-                print(f"Consulta finalizada com sucesso! Comprovante gerado: {res}")
-            else:
-                print("Consulta concluida. Nenhuma inscricao ativa localizada ou falha ao gerar comprovante.")
-
-            browser.close()
-            return True
 
     res = executar_consulta(usar_proxy=bool(cfg.get("proxy")))
     if res == "retry_direct":
         executar_consulta(usar_proxy=False)
-                try:
-                    page.wait_for_load_state("domcontentloaded", timeout=15000)
-                except Exception:
-                    pass
-            elif "FrmMenuVoluntario.aspx" not in page.url:
-                try:
-                    page.goto("https://proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="domcontentloaded", timeout=60000)
-                except Exception:
-                    page.goto("https://proeis.rj.gov.br/FrmMenuVoluntario.aspx", timeout=60000)
-            time.sleep(2)
-
-            chk_mes = page.query_selector("#chkEveMes")
-            if chk_mes:
-                chk_mes.click()
-                try:
-                    page.wait_for_load_state("domcontentloaded", timeout=15000)
-                except Exception:
-                    pass
-                time.sleep(2)
-
-            textarea = page.query_selector("#txtEveVoluntario")
-            conteudo = textarea.input_value() if textarea else ""
-            
-            if conteudo.strip():
-                print("\n" + "="*60)
-                print("          VAGAS CONFIRMADAS NO CPROEIS")
-                print("="*60 + "\n")
-                
-                linhas = [l.strip() for l in conteudo.split("\n") if l.strip()]
-                for linha in linhas:
-                    if "====" in linha:
-                        print("-" * 60)
-                    else:
-                        print(linha)
-                print("\n" + "="*60)
-            else:
-                print("Nenhum evento registrado encontrado no periodo.")
-
-            caminho_pdf = gerar_pdf_comprovante(conteudo, "comprovantes/comprovante_vagas.pdf", cfg.get("documento", ""), page=page)
-            print(f"Comprovante PDF salvo em: {caminho_pdf}")
-
-        except Exception as e:
-            print(f"Ocorreu um erro na consulta: {str(e)}")
-        finally:
-            print("\nConsulta finalizada.")
-            time.sleep(3)
-            browser.close()
 
 if __name__ == "__main__":
     consultar()
-
