@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react"
-import { botApi, clientsApi, usersApi } from "../api/client"
+import { Capacitor } from "@capacitor/core"
+import { botApi, clientsApi, usersApi, settingsApi } from "../api/client"
+import { consultVagasDirectNative, runAutomationDirectNative } from "../api/nativeProeis"
 import { StatusBadge } from "../components/StatusBadge"
 import { Skeleton } from "../components/Skeleton"
 import {
@@ -152,6 +154,11 @@ export function Dashboard({ user, onNavigateTab }) {
     setSelectedMode(mode)
   }
 
+  function emitLocalLog(msg) {
+    const timeStr = new Date().toTimeString().split(" ")[0]
+    setLogs((prev) => [...prev, { timestamp: timeStr, message: String(msg).trim() }])
+  }
+
   async function handleStart() {
     setErrorMsg("")
     setActionLoading(true)
@@ -168,6 +175,34 @@ export function Dashboard({ user, onNavigateTab }) {
         }
         fetchHistory()
       } catch {}
+
+      if (Capacitor.isNativePlatform()) {
+        setLogs([])
+        setStatusInfo((prev) => ({
+          ...prev,
+          status: "running",
+          mode: selectedMode,
+          started_at: new Date().toISOString().replace("T", " ").substring(0, 19)
+        }))
+        let settings = {}
+        try {
+          settings = await settingsApi.get()
+        } catch {}
+        const res = await runAutomationDirectNative(selectedMode, selectedClient, settings, emitLocalLog, () => false)
+        const finalStatus = res.success ? "completed" : "error"
+        setStatusInfo((prev) => ({ ...prev, status: finalStatus }))
+        if (currentExecutionIdRef.current) {
+          try {
+            await botApi.updateExecution(currentExecutionIdRef.current, {
+              status: finalStatus,
+              finished_at: true
+            })
+            currentExecutionIdRef.current = null
+          } catch {}
+        }
+        fetchHistory()
+        return
+      }
 
       await botApi.start(selectedMode, cId, selectedClient)
       await fetchStatus()
@@ -195,6 +230,34 @@ export function Dashboard({ user, onNavigateTab }) {
         }
         fetchHistory()
       } catch {}
+
+      if (Capacitor.isNativePlatform()) {
+        setLogs([])
+        setStatusInfo((prev) => ({
+          ...prev,
+          status: "running",
+          mode: "consulta",
+          started_at: new Date().toISOString().replace("T", " ").substring(0, 19)
+        }))
+        let settings = {}
+        try {
+          settings = await settingsApi.get()
+        } catch {}
+        const res = await consultVagasDirectNative(selectedClient, settings, emitLocalLog)
+        const finalStatus = res.success ? "completed" : "error"
+        setStatusInfo((prev) => ({ ...prev, status: finalStatus }))
+        if (currentExecutionIdRef.current) {
+          try {
+            await botApi.updateExecution(currentExecutionIdRef.current, {
+              status: finalStatus,
+              finished_at: true
+            })
+            currentExecutionIdRef.current = null
+          } catch {}
+        }
+        fetchHistory()
+        return
+      }
 
       await botApi.consult(cId, selectedClient)
       await fetchStatus()
