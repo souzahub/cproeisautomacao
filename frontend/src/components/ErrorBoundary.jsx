@@ -19,7 +19,7 @@ export class ErrorBoundary extends React.Component {
   handleResetAuth = () => {
     localStorage.removeItem("auth_token")
     localStorage.removeItem("auth_user")
-    window.location.href = "/"
+    this.setState({ hasError: false, error: null })
   }
 
   render() {

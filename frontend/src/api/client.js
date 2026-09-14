@@ -32,7 +32,6 @@ export async function apiRequest(endpoint, options = {}) {
   if (response.status === 401) {
     localStorage.removeItem("auth_token")
     localStorage.removeItem("auth_user")
-    window.location.href = "/"
     throw new Error("Sessao expirada.")
   }
 
