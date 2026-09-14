@@ -47,6 +47,7 @@ export function AlertDialogTrigger({ render, children, asChild, ...props }) {
 
 export function AlertDialogContent({ size = "default", children, className = "", style = {} }) {
   const { isOpen, setOpen } = useContext(AlertDialogContext)
+  const mouseDownTargetRef = React.useRef(null)
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -74,8 +75,13 @@ export function AlertDialogContent({ size = "default", children, className = "",
         padding: "16px",
         backgroundColor: "rgba(0, 0, 0, 0.7)"
       }}
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) setOpen(false)
+        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          setOpen(false)
+        }
       }}
     >
       <div

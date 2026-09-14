@@ -46,6 +46,7 @@ export function DialogTrigger({ render, children, asChild, ...props }) {
 
 export function DialogContent({ children, className = "", style = {} }) {
   const { isOpen, setOpen } = useContext(DialogContext)
+  const mouseDownTargetRef = React.useRef(null)
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -71,8 +72,13 @@ export function DialogContent({ children, className = "", style = {} }) {
         padding: "16px",
         backgroundColor: "rgba(0, 0, 0, 0.65)"
       }}
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) setOpen(false)
+        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          setOpen(false)
+        }
       }}
     >
       <div
