@@ -29,8 +29,16 @@ export function Users({ currentUser }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState(null)
   const [newUser, setNewUser] = useState({
+    email: "",
+    name: "",
+    password: "",
+    role: "operador"
+  })
+  const [editUserData, setEditUserData] = useState({
+    id: null,
     email: "",
     name: "",
     password: "",
@@ -55,10 +63,21 @@ export function Users({ currentUser }) {
     loadUsers()
   }, [])
 
+  function handleOpenEdit(user) {
+    setEditUserData({
+      id: user.id,
+      email: user.email || "",
+      name: user.name || "",
+      password: "",
+      role: user.role || "operador"
+    })
+    setEditDialogOpen(true)
+  }
+
   async function handleCreateUser(e) {
     e.preventDefault()
     if (!newUser.email || !newUser.password) {
-      setNotification({ type: "error", text: "preencha email e senha" })
+      setNotification({ type: "error", text: "preencha email/usuário e senha" })
       return
     }
 
@@ -72,6 +91,35 @@ export function Users({ currentUser }) {
       await loadUsers()
     } catch (err) {
       setNotification({ type: "error", text: err.message || "falha ao criar usuário" })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  async function handleUpdateUser(e) {
+    e.preventDefault()
+    if (!editUserData.email) {
+      setNotification({ type: "error", text: "o nome de usuário/login é obrigatório" })
+      return
+    }
+
+    setActionLoading(true)
+    setNotification({ type: "", text: "" })
+    try {
+      const payload = {
+        name: editUserData.name,
+        email: editUserData.email,
+        role: editUserData.role
+      }
+      if (editUserData.password && editUserData.password.trim()) {
+        payload.password = editUserData.password.trim()
+      }
+      await usersApi.update(editUserData.id, payload)
+      setEditDialogOpen(false)
+      setNotification({ type: "info", text: "usuário atualizado" })
+      await loadUsers()
+    } catch (err) {
+      setNotification({ type: "error", text: err.message || "falha ao atualizar usuário" })
     } finally {
       setActionLoading(false)
     }
@@ -116,89 +164,12 @@ export function Users({ currentUser }) {
         <div className="card-header">
           <div>
             <h3 className="card-title">gerenciamento de acessos</h3>
-            <p className="card-desc">cadastre novos operadores ou altere permissões do sistema</p>
+            <p className="card-desc">cadastre novos operadores, altere senhas ou permissões do sistema</p>
           </div>
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger render={<Button>cadastrar novo usuário</Button>} />
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>cadastrar novo usuário</DialogTitle>
-                <DialogDescription>
-                  preencha os dados do novo operador ou administrador
-                </DialogDescription>
-              </DialogHeader>
-
-              <form onSubmit={handleCreateUser}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="user_name">nome</label>
-                  <input
-                    id="user_name"
-                    className="form-input"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                    placeholder="nome completo"
-                    disabled={actionLoading}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="user_email">email</label>
-                  <input
-                    id="user_email"
-                    type="email"
-                    className="form-input"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    placeholder="operador@exemplo.com"
-                    disabled={actionLoading}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="user_password">senha</label>
-                  <PasswordInput
-                    id="user_password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    placeholder="senha de acesso"
-                    disabled={actionLoading}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="user_role">nível de permissão</label>
-                  <select
-                    id="user_role"
-                    className="form-select"
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                    disabled={actionLoading}
-                  >
-                    <option value="operador">operador (executa bot e consulta vagas)</option>
-                    <option value="master">administrador master (controle total)</option>
-                  </select>
-                </div>
-
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setDialogOpen(false)}
-                    disabled={actionLoading}
-                  >
-                    cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? "salvando..." : "salvar cadastro"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setDialogOpen(true)}>
+            cadastrar novo usuário
+          </Button>
         </div>
 
         <div className="table-container">
@@ -207,7 +178,7 @@ export function Users({ currentUser }) {
               <tr>
                 <th>id</th>
                 <th>nome</th>
-                <th>email</th>
+                <th>usuário / login</th>
                 <th>permissão</th>
                 <th>status</th>
                 <th>ações</th>
@@ -231,13 +202,22 @@ export function Users({ currentUser }) {
                   <tr key={u.id}>
                     <td style={{ fontWeight: 600 }}>#{u.id}</td>
                     <td>{u.name || "-"}</td>
-                    <td>{u.email}</td>
+                    <td style={{ fontWeight: 500 }}>{u.email}</td>
                     <td>{u.role === "master" ? "administrador master" : "operador"}</td>
                     <td>
                       <StatusBadge status={u.is_active ? "ativo" : "inativo"} />
                     </td>
                     <td>
-                      <div style={{ display: "flex", gap: "8px" }}>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEdit(u)}
+                          disabled={actionLoading}
+                        >
+                          editar
+                        </Button>
+
                         {u.id !== currentUser.id && (
                           <>
                             <Button
@@ -260,7 +240,7 @@ export function Users({ currentUser }) {
                           </>
                         )}
                         {u.id === currentUser.id && (
-                          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>conta atual</span>
+                          <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "4px" }}>sua conta</span>
                         )}
                       </div>
                     </td>
@@ -271,6 +251,168 @@ export function Users({ currentUser }) {
           </table>
         </div>
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>cadastrar novo usuário</DialogTitle>
+            <DialogDescription>
+              preencha os dados do novo operador ou administrador
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateUser}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="user_name">nome</label>
+              <input
+                id="user_name"
+                className="form-input"
+                value={newUser.name}
+                onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                placeholder="nome completo"
+                disabled={actionLoading}
+                autoFocus
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="user_email">usuário / login</label>
+              <input
+                id="user_email"
+                type="text"
+                className="form-input"
+                value={newUser.email}
+                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                placeholder="ex: operador1 ou email"
+                disabled={actionLoading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="user_password">senha</label>
+              <PasswordInput
+                id="user_password"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                placeholder="senha de acesso"
+                disabled={actionLoading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="user_role">nível de permissão</label>
+              <select
+                id="user_role"
+                className="form-select"
+                value={newUser.role}
+                onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                disabled={actionLoading}
+              >
+                <option value="operador">operador (executa bot e consulta vagas)</option>
+                <option value="master">administrador master (controle total)</option>
+              </select>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+                disabled={actionLoading}
+              >
+                cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={actionLoading}
+              >
+                {actionLoading ? "salvando..." : "salvar cadastro"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>editar usuário</DialogTitle>
+            <DialogDescription>
+              atualize o nome, usuário/login ou altere a senha de acesso
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdateUser}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="edit_user_name">nome</label>
+              <input
+                id="edit_user_name"
+                className="form-input"
+                value={editUserData.name}
+                onChange={(e) => setEditUserData({ ...editUserData, name: e.target.value })}
+                placeholder="nome completo"
+                disabled={actionLoading}
+                autoFocus
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="edit_user_email">usuário / login</label>
+              <input
+                id="edit_user_email"
+                type="text"
+                className="form-input"
+                value={editUserData.email}
+                onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })}
+                placeholder="usuário de acesso"
+                disabled={actionLoading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="edit_user_password">alterar senha (opcional)</label>
+              <PasswordInput
+                id="edit_user_password"
+                value={editUserData.password}
+                onChange={(e) => setEditUserData({ ...editUserData, password: e.target.value })}
+                placeholder="deixe vazio para manter a senha atual"
+                disabled={actionLoading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="edit_user_role">nível de permissão</label>
+              <select
+                id="edit_user_role"
+                className="form-select"
+                value={editUserData.role}
+                onChange={(e) => setEditUserData({ ...editUserData, role: e.target.value })}
+                disabled={actionLoading || editUserData.id === currentUser.id}
+              >
+                <option value="operador">operador (executa bot e consulta vagas)</option>
+                <option value="master">administrador master (controle total)</option>
+              </select>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditDialogOpen(false)}
+                disabled={actionLoading}
+              >
+                cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={actionLoading}
+              >
+                {actionLoading ? "salvando..." : "salvar alterações"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
         <AlertDialogContent size="sm">

@@ -22,6 +22,7 @@ class UserCreate(BaseModel):
     role: Optional[str] = "operador"
 
 class UserUpdate(BaseModel):
+    email: Optional[str] = None
     name: Optional[str] = None
     password: Optional[str] = None
     role: Optional[str] = None
