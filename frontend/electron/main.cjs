@@ -31,6 +31,7 @@ function createWindow() {
     title: "cproeis automação",
     icon: path.join(__dirname, "icon.ico"),
     backgroundColor: "#0d1117",
+    show: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -40,16 +41,16 @@ function createWindow() {
     autoHideMenuBar: true
   })
 
-  if (app.isPackaged) {
-    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"))
+  const indexPath = path.resolve(__dirname, "..", "dist", "index.html")
+
+  if (fs.existsSync(indexPath)) {
+    mainWindow.loadFile(indexPath)
   } else {
-    const devDist = path.join(__dirname, "../dist/index.html")
-    if (fs.existsSync(devDist)) {
-      mainWindow.loadFile(devDist)
-    } else {
-      mainWindow.loadURL("http://localhost:5173")
-    }
+    mainWindow.loadURL("http://localhost:5173")
   }
+
+  mainWindow.show()
+  mainWindow.focus()
 
   mainWindow.on("closed", () => {
     mainWindow = null
