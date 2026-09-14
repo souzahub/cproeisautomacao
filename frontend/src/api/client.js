@@ -170,6 +170,14 @@ export const botApi = {
     }
     return apiRequest(`/api/bot/logs?offset=${offset}`)
   },
+  clearLogs: async () => {
+    if (typeof window !== "undefined" && window.electronAPI && window.electronAPI.clearLogs) {
+      try {
+        await window.electronAPI.clearLogs()
+      } catch {}
+    }
+    return apiRequest("/api/bot/logs/clear", { method: "POST" }).catch(() => ({}))
+  },
   getHistory: () => apiRequest("/api/bot/history"),
   clearHistory: () =>
     apiRequest("/api/bot/history", {

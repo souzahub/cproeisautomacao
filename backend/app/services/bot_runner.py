@@ -34,6 +34,10 @@ class BotRunnerService:
                 "logs_count": len(self.logs)
             }
 
+    def clear_logs(self):
+        with self.lock:
+            self.logs = []
+
     def get_logs(self, start_index: int = 0) -> List[Dict[str, str]]:
         with self.lock:
             if start_index >= len(self.logs):

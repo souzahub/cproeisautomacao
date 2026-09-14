@@ -65,6 +65,12 @@ def get_bot_logs(offset: int = Query(0, ge=0), current_user: User = Depends(get_
         "total_count": status_info["logs_count"]
     }
 
+@router.post("/logs/clear")
+@router.delete("/logs")
+def clear_bot_logs(current_user: User = Depends(get_current_user)):
+    bot_runner.clear_logs()
+    return {"message": "Logs limpos com sucesso."}
+
 @router.get("/history", response_model=List[BotExecutionResponse])
 def get_execution_history(limit: int = Query(20, ge=1, le=100), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role == "master":

@@ -178,6 +178,13 @@ export function Dashboard({ user, onNavigateTab }) {
     }
   }
 
+  async function handleClearLogs() {
+    setLogs([])
+    try {
+      await botApi.clearLogs()
+    } catch {}
+  }
+
   const isRunning = statusInfo.status === "running"
   const selectedClient = clients.find(c => String(c.id) === String(selectedClientId))
 
@@ -483,7 +490,7 @@ export function Dashboard({ user, onNavigateTab }) {
           </div>
           <button
             className="btn btn-secondary btn-sm"
-            onClick={() => setLogs([])}
+            onClick={handleClearLogs}
             disabled={logs.length === 0}
           >
             limpar visualização

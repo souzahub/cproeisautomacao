@@ -246,6 +246,14 @@ ipcMain.handle("bot:consult", async (_event, { clientData }) => {
   return { success: true }
 })
 
+ipcMain.handle("bot:clear-logs", async () => {
+  botLogs = []
+  if (mainWindow) {
+    mainWindow.webContents.send("bot:status-change", { logs_count: 0 })
+  }
+  return { success: true }
+})
+
 ipcMain.handle("comprovantes:list", async () => {
   const rootDir = getProjectRoot()
   const compDir = path.join(rootDir, "comprovantes")

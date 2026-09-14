@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   startConsult: (clientData) => ipcRenderer.invoke("bot:consult", { clientData }),
   stopBot: () => ipcRenderer.invoke("bot:stop"),
   getStatus: () => ipcRenderer.invoke("bot:status"),
+  clearLogs: () => ipcRenderer.invoke("bot:clear-logs"),
   listComprovantes: () => ipcRenderer.invoke("comprovantes:list"),
   openComprovante: (filePath) => ipcRenderer.invoke("comprovantes:open", filePath),
   onLog: (callback) => {
