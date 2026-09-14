@@ -57,7 +57,7 @@ export function Header({ title, onToggleSidebar, sidebarCollapsed, theme, onTogg
         <button
           className="sidebar-toggle-btn"
           onClick={onToggleSidebar}
-          title={sidebarCollapsed ? "expandir menu lateral" : "recolher menu lateral"}
+          title={sidebarCollapsed ? "expandir menu" : "recolher menu"}
           aria-label="alternar menu lateral"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -76,17 +76,17 @@ export function Header({ title, onToggleSidebar, sidebarCollapsed, theme, onTogg
 
         <button
           type="button"
-          className="btn btn-secondary"
-          style={{ padding: "5px 12px", fontSize: "11px", height: "auto" }}
+          className="btn btn-secondary header-sync-btn"
+          style={{ padding: "5px 10px", fontSize: "11px", height: "auto" }}
           onClick={handleSync}
           disabled={syncing}
-          title="sincronizar dados salvos localmente com a nuvem"
+          title="sincronizar dados com a nuvem"
         >
-          {syncing ? "sincronizando..." : pendingCount > 0 ? `sincronizar nuvem (${pendingCount})` : "sincronizar nuvem"}
+          {syncing ? "sincronizando..." : pendingCount > 0 ? `sincronizar (${pendingCount})` : "sincronizar"}
         </button>
 
         {syncMsg && (
-          <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+          <span className="header-sync-feedback" style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
             {syncMsg}
           </span>
         )}
@@ -94,12 +94,13 @@ export function Header({ title, onToggleSidebar, sidebarCollapsed, theme, onTogg
         <button
           className="theme-pill-btn"
           onClick={onToggleTheme}
+          aria-label="alternar tema"
         >
           {theme === "light" ? "tema escuro" : "tema claro"}
         </button>
 
         <button
-          className="logout-pill-btn"
+          className="logout-pill-btn header-logout-desktop"
           onClick={onLogout}
           title="encerrar sessão"
         >

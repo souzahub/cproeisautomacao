@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { Sidebar } from "./Sidebar"
 import { Header } from "./Header"
+import { BottomNav } from "./BottomNav"
 import { Dashboard } from "../pages/Dashboard"
 import { Clients } from "../pages/Clients"
 import { Settings } from "../pages/Settings"
@@ -71,6 +72,13 @@ export function Layout({ user, onLogout, theme, onToggleTheme }) {
           {currentTab === "users" && <Users currentUser={user} />}
           {currentTab === "comprovantes" && <Comprovantes />}
         </main>
+
+        <BottomNav
+          currentTab={currentTab}
+          onSelectTab={setCurrentTab}
+          user={user}
+          onLogout={onLogout}
+        />
       </div>
     </div>
   )
