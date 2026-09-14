@@ -116,6 +116,8 @@ app.include_router(bot.router)
 app.include_router(comprovantes.router)
 
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+SERVE_FRONTEND = os.getenv("SERVE_FRONTEND", "false").lower() in ("true", "1", "yes")
+
 STATUS_API = {
     "status": "online",
     "service": "CPROEIS API Server",
@@ -124,9 +126,8 @@ STATUS_API = {
 
 @app.get("/")
 def root_status():
-    index = FRONTEND_DIST / "index.html"
-    if index.exists():
-        return FileResponse(index)
+    if SERVE_FRONTEND and (FRONTEND_DIST / "index.html").exists():
+        return FileResponse(FRONTEND_DIST / "index.html")
     return STATUS_API
 
 @app.get("/api/health")
@@ -135,7 +136,7 @@ def health_check():
 
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
-    if (FRONTEND_DIST / "index.html").exists():
+    if SERVE_FRONTEND and (FRONTEND_DIST / "index.html").exists():
         if full_path:
             arquivo = (FRONTEND_DIST / full_path).resolve()
             dist_root = FRONTEND_DIST.resolve()
