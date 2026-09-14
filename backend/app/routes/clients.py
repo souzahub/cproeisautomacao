@@ -8,10 +8,15 @@ from ..security import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
 
-def to_client_response(client: ClientProfile) -> ClientProfileResponse:
+def to_client_response(client: ClientProfile, db: Session = None) -> ClientProfileResponse:
     res = ClientProfileResponse.model_validate(client)
-    if client.user:
-        res.system_user = client.user.email
+    if client.user_id:
+        if client.user:
+            res.system_user = client.user.email
+        elif db:
+            u = db.query(User).filter(User.id == client.user_id).first()
+            if u:
+                res.system_user = u.email
     return res
 
 @router.get("", response_model=List[ClientProfileResponse])
@@ -20,7 +25,7 @@ def list_clients(db: Session = Depends(get_db), current_user: User = Depends(get
         clients = db.query(ClientProfile).order_by(ClientProfile.id.desc()).all()
     else:
         clients = db.query(ClientProfile).filter(ClientProfile.user_id == current_user.id).order_by(ClientProfile.id.desc()).all()
-    return [to_client_response(c) for c in clients]
+    return [to_client_response(c, db) for c in clients]
 
 @router.post("", response_model=ClientProfileResponse)
 def create_client(client_in: ClientProfileCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -34,28 +39,23 @@ def create_client(client_in: ClientProfileCreate, db: Session = Depends(get_db),
 
     if current_user.role == "master" and client_in.system_user and client_in.system_user.strip():
         username = client_in.system_user.strip()
+        pwd = client_in.system_password.strip() if client_in.system_password and client_in.system_password.strip() else (client_in.password or "123456")
         existing_user = db.query(User).filter(User.email == username).first()
         if existing_user:
-            if client_in.system_password:
-                existing_user.hashed_password = get_password_hash(client_in.system_password)
+            if client_in.system_password and client_in.system_password.strip():
+                existing_user.hashed_password = get_password_hash(pwd)
             existing_user.name = client_in.name
             assigned_user_id = existing_user.id
         else:
-            if not client_in.system_password:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Informe a senha de acesso ao sistema para o novo usuario."
-                )
             new_user = User(
                 email=username,
                 name=client_in.name,
-                hashed_password=get_password_hash(client_in.system_password),
+                hashed_password=get_password_hash(pwd),
                 role="operador",
                 is_active=True
             )
             db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
+            db.flush()
             assigned_user_id = new_user.id
 
     client = ClientProfile(
@@ -81,7 +81,7 @@ def create_client(client_in: ClientProfileCreate, db: Session = Depends(get_db),
     db.add(client)
     db.commit()
     db.refresh(client)
-    return to_client_response(client)
+    return to_client_response(client, db)
 
 @router.get("/{client_id}", response_model=ClientProfileResponse)
 def get_client(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -90,7 +90,7 @@ def get_client(client_id: int, db: Session = Depends(get_db), current_user: User
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado.")
     if current_user.role != "master" and client.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso nao autorizado a este cliente.")
-    return to_client_response(client)
+    return to_client_response(client, db)
 
 @router.put("/{client_id}", response_model=ClientProfileResponse)
 def update_client(client_id: int, client_in: ClientProfileUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -103,35 +103,31 @@ def update_client(client_id: int, client_in: ClientProfileUpdate, db: Session = 
     if current_user.role == "master":
         if client_in.system_user and client_in.system_user.strip():
             username = client_in.system_user.strip()
-            if client.user:
-                client.user.email = username
+            pwd = client_in.system_password.strip() if client_in.system_password and client_in.system_password.strip() else (client.password or "123456")
+            user_obj = None
+            if client.user_id:
+                user_obj = db.query(User).filter(User.id == client.user_id).first()
+            if not user_obj:
+                user_obj = db.query(User).filter(User.email == username).first()
+
+            if user_obj:
+                user_obj.email = username
                 if client_in.name:
-                    client.user.name = client_in.name
-                if client_in.system_password:
-                    client.user.hashed_password = get_password_hash(client_in.system_password)
+                    user_obj.name = client_in.name
+                if client_in.system_password and client_in.system_password.strip():
+                    user_obj.hashed_password = get_password_hash(pwd)
+                client.user_id = user_obj.id
             else:
-                existing_user = db.query(User).filter(User.email == username).first()
-                if existing_user:
-                    if client_in.system_password:
-                        existing_user.hashed_password = get_password_hash(client_in.system_password)
-                    client.user_id = existing_user.id
-                else:
-                    if not client_in.system_password:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Informe a senha de acesso ao sistema para o novo usuario."
-                        )
-                    new_user = User(
-                        email=username,
-                        name=client_in.name or client.name,
-                        hashed_password=get_password_hash(client_in.system_password),
-                        role="operador",
-                        is_active=True
-                    )
-                    db.add(new_user)
-                    db.commit()
-                    db.refresh(new_user)
-                    client.user_id = new_user.id
+                new_user = User(
+                    email=username,
+                    name=client_in.name or client.name,
+                    hashed_password=get_password_hash(pwd),
+                    role="operador",
+                    is_active=True
+                )
+                db.add(new_user)
+                db.flush()
+                client.user_id = new_user.id
         elif client_in.user_id is not None:
             client.user_id = client_in.user_id if client_in.user_id > 0 else None
 
