@@ -12,6 +12,8 @@ let botStatus = {
   logs_count: 0
 }
 
+setInterval(() => {}, 1000)
+
 function getProjectRoot() {
   if (app.isPackaged) {
     const resourcesPath = path.join(process.resourcesPath, "app_engine")
@@ -33,10 +35,11 @@ function createWindow() {
     backgroundColor: "#0d1117",
     show: true,
     webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: false
+      webSecurity: false,
+      allowRunningInsecureContent: true
     },
     autoHideMenuBar: true
   })
