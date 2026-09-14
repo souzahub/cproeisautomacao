@@ -4,6 +4,7 @@ import { getSyncQueue, clearSyncQueue, getLastSyncTime } from "../api/sync"
 import { Skeleton } from "../components/Skeleton"
 import { PasswordInput } from "../components/ui/password-input"
 import { InfoTooltip } from "../components/ui/info-tooltip"
+import { DocumentInput } from "../components/ui/masked-text"
 
 export function Settings() {
   const [formData, setFormData] = useState({
@@ -278,9 +279,8 @@ export function Settings() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="cpf">número do documento</label>
-                <input
+                <DocumentInput
                   id="cpf"
-                  className="form-input"
                   value={formData.CPF}
                   onChange={(e) => handleChange("CPF", e.target.value)}
                   placeholder="000.000.000-00"

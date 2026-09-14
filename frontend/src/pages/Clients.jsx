@@ -23,6 +23,7 @@ import {
 import { Button } from "../components/ui/button"
 import { PasswordInput } from "../components/ui/password-input"
 import { InfoTooltip } from "../components/ui/info-tooltip"
+import { MaskedText, DocumentInput } from "../components/ui/masked-text"
 
 export function Clients() {
   const [clients, setClients] = useState([])
@@ -216,7 +217,7 @@ export function Clients() {
                 clients.map((c) => (
                   <tr key={c.id}>
                     <td style={{ fontWeight: 600 }}>{c.name}</td>
-                    <td>{c.document}</td>
+                    <td><MaskedText text={c.document} /></td>
                     <td>
                       {c.system_user ? (
                         <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>
@@ -323,9 +324,8 @@ export function Clients() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="cli_doc">número documento</label>
-                <input
+                <DocumentInput
                   id="cli_doc"
-                  className="form-input"
                   value={formData.document}
                   onChange={(e) => setFormData({ ...formData, document: e.target.value })}
                   placeholder="000.000.000-00"

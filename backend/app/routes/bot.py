@@ -117,3 +117,45 @@ def delete_execution_history_item(execution_id: int, db: Session = Depends(get_d
     db.delete(item)
     db.commit()
     return {"message": "Registro removido."}
+
+@router.post("/history", response_model=BotExecutionResponse)
+def record_execution(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from datetime import datetime
+    client_name = data.get("client_name") or "Padrao do sistema"
+    exec_record = BotExecution(
+        mode=data.get("mode", "homologacao"),
+        status=data.get("status", "running"),
+        triggered_by=current_user.email,
+        client_name=client_name,
+        started_at=datetime.utcnow()
+    )
+    db.add(exec_record)
+    db.commit()
+    db.refresh(exec_record)
+    return exec_record
+
+@router.put("/history/{execution_id}", response_model=BotExecutionResponse)
+def update_execution_record(
+    execution_id: int,
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from datetime import datetime
+    from fastapi import HTTPException, status
+    item = db.query(BotExecution).filter(BotExecution.id == execution_id).first()
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro nao encontrado.")
+    if "status" in data:
+        item.status = data["status"]
+    if data.get("finished_at"):
+        item.finished_at = datetime.utcnow()
+    if "logs" in data:
+        item.logs = data["logs"]
+    db.commit()
+    db.refresh(item)
+    return item

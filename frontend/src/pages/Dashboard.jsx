@@ -21,6 +21,7 @@ import {
   AlertDialogCancel,
 } from "../components/ui/alert-dialog"
 import { Button } from "../components/ui/button"
+import { MaskedText } from "../components/ui/masked-text"
 
 export function Dashboard({ user, onNavigateTab }) {
   const isMaster = user?.role === "master"
@@ -51,6 +52,8 @@ export function Dashboard({ user, onNavigateTab }) {
   const [historySearchQuery, setHistorySearchQuery] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
   const logTerminalRef = useRef(null)
+
+  const currentExecutionIdRef = useRef(null)
 
   async function fetchClients() {
     try {
@@ -112,8 +115,18 @@ export function Dashboard({ user, onNavigateTab }) {
       const unsubLog = window.electronAPI.onLog((logObj) => {
         setLogs((prev) => [...prev, logObj])
       })
-      const unsubStatus = window.electronAPI.onStatusChange((newStatus) => {
+      const unsubStatus = window.electronAPI.onStatusChange(async (newStatus) => {
         setStatusInfo((prev) => ({ ...prev, ...newStatus }))
+        if (newStatus.status && newStatus.status !== "running" && currentExecutionIdRef.current) {
+          try {
+            await botApi.updateExecution(currentExecutionIdRef.current, {
+              status: newStatus.status,
+              finished_at: true
+            })
+            currentExecutionIdRef.current = null
+            fetchHistory()
+          } catch {}
+        }
       })
       return () => {
         if (unsubLog) unsubLog()
@@ -144,6 +157,18 @@ export function Dashboard({ user, onNavigateTab }) {
     setActionLoading(true)
     try {
       const cId = selectedClientId ? Number(selectedClientId) : null
+      try {
+        const execRec = await botApi.recordExecution({
+          mode: selectedMode,
+          client_name: selectedClient?.name || "padrão",
+          status: "running"
+        })
+        if (execRec && execRec.id) {
+          currentExecutionIdRef.current = execRec.id
+        }
+        fetchHistory()
+      } catch {}
+
       await botApi.start(selectedMode, cId, selectedClient)
       await fetchStatus()
       if (!window.electronAPI) await fetchLogs()
@@ -159,6 +184,18 @@ export function Dashboard({ user, onNavigateTab }) {
     setActionLoading(true)
     try {
       const cId = selectedClientId ? Number(selectedClientId) : null
+      try {
+        const execRec = await botApi.recordExecution({
+          mode: "consulta",
+          client_name: selectedClient?.name || "padrão",
+          status: "running"
+        })
+        if (execRec && execRec.id) {
+          currentExecutionIdRef.current = execRec.id
+        }
+        fetchHistory()
+      } catch {}
+
       await botApi.consult(cId, selectedClient)
       await fetchStatus()
       if (!window.electronAPI) await fetchLogs()
@@ -173,6 +210,15 @@ export function Dashboard({ user, onNavigateTab }) {
     setErrorMsg("")
     setActionLoading(true)
     try {
+      if (currentExecutionIdRef.current) {
+        try {
+          await botApi.updateExecution(currentExecutionIdRef.current, {
+            status: "stopped",
+            finished_at: true
+          })
+          currentExecutionIdRef.current = null
+        } catch {}
+      }
       await botApi.stop()
       await fetchStatus()
       await fetchHistory()
@@ -330,7 +376,7 @@ export function Dashboard({ user, onNavigateTab }) {
               <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "220px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{selectedClient.name}</span>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>({selectedClient.document})</span>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>(<MaskedText text={selectedClient.document} />)</span>
                   <StatusBadge status={selectedClient.is_active ? "ativo" : "inativo"} />
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
@@ -790,7 +836,7 @@ export function Dashboard({ user, onNavigateTab }) {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{c.name}</span>
-                        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>({c.document})</span>
+                        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>(<MaskedText text={c.document} />)</span>
                         <StatusBadge status={c.is_active ? "ativo" : "inativo"} />
                       </div>
                       {isSelected && (

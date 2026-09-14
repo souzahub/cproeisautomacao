@@ -403,24 +403,83 @@ export const botApi = {
     }
     return apiRequest("/api/bot/logs/clear", { method: "POST" }).catch(() => ({}))
   },
-  getHistory: (params = {}) => {
-    const query = new URLSearchParams()
-    if (params.user) query.append("user", params.user)
-    if (params.client) query.append("client", params.client)
-    if (params.status) query.append("status", params.status)
-    if (params.mode) query.append("mode", params.mode)
-    if (params.limit) query.append("limit", params.limit)
-    const qs = query.toString() ? `?${query.toString()}` : ""
-    return apiRequest(`/api/bot/history${qs}`)
+  getHistory: async (params = {}) => {
+    try {
+      const query = new URLSearchParams()
+      if (params.user) query.append("user", params.user)
+      if (params.client) query.append("client", params.client)
+      if (params.status) query.append("status", params.status)
+      if (params.mode) query.append("mode", params.mode)
+      if (params.limit) query.append("limit", params.limit)
+      const qs = query.toString() ? `?${query.toString()}` : ""
+      const data = await apiRequest(`/api/bot/history${qs}`)
+      setLocalCache("cproeis_cache_history", data)
+      return data
+    } catch {
+      return getLocalCache("cproeis_cache_history", [])
+    }
   },
-  clearHistory: () =>
-    apiRequest("/api/bot/history", {
-      method: "DELETE"
-    }),
-  deleteHistoryItem: (id) =>
-    apiRequest(`/api/bot/history/${id}`, {
-      method: "DELETE"
-    })
+  recordExecution: async (data) => {
+    try {
+      const res = await apiRequest("/api/bot/history", {
+        method: "POST",
+        body: JSON.stringify(data)
+      })
+      const cached = getLocalCache("cproeis_cache_history", [])
+      setLocalCache("cproeis_cache_history", [res, ...cached.filter(h => h.id !== res.id)])
+      return res
+    } catch {
+      const localId = Date.now()
+      const userStr = localStorage.getItem("auth_user")
+      const user = userStr ? JSON.parse(userStr) : null
+      const localRecord = {
+        id: localId,
+        mode: data.mode || "homologacao",
+        status: data.status || "running",
+        triggered_by: user?.email || "operador",
+        client_name: data.client_name || "padrão",
+        started_at: new Date().toISOString()
+      }
+      const cached = getLocalCache("cproeis_cache_history", [])
+      setLocalCache("cproeis_cache_history", [localRecord, ...cached])
+      return localRecord
+    }
+  },
+  updateExecution: async (id, data) => {
+    try {
+      const res = await apiRequest(`/api/bot/history/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data)
+      })
+      const cached = getLocalCache("cproeis_cache_history", [])
+      setLocalCache("cproeis_cache_history", cached.map(h => h.id === id ? res : h))
+      return res
+    } catch {
+      const cached = getLocalCache("cproeis_cache_history", [])
+      const updated = cached.map(h => h.id === id ? { ...h, ...data, finished_at: new Date().toISOString() } : h)
+      setLocalCache("cproeis_cache_history", updated)
+      return { success: true }
+    }
+  },
+  clearHistory: async () => {
+    try {
+      await apiRequest("/api/bot/history", {
+        method: "DELETE"
+      })
+    } catch {}
+    setLocalCache("cproeis_cache_history", [])
+    return { success: true }
+  },
+  deleteHistoryItem: async (id) => {
+    try {
+      await apiRequest(`/api/bot/history/${id}`, {
+        method: "DELETE"
+      })
+    } catch {}
+    const cached = getLocalCache("cproeis_cache_history", [])
+    setLocalCache("cproeis_cache_history", cached.filter(h => h.id !== id))
+    return { success: true }
+  }
 }
 
 export const comprovantesApi = {
