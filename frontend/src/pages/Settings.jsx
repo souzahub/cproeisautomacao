@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { settingsApi } from "../api/client"
+import { settingsApi, getBaseUrl } from "../api/client"
 import { Skeleton } from "../components/Skeleton"
 import { PasswordInput } from "../components/ui/password-input"
 import { InfoTooltip } from "../components/ui/info-tooltip"
@@ -27,7 +27,7 @@ export function Settings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [notification, setNotification] = useState({ type: "", text: "" })
-  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem("server_url") || "https://cprsautomacao.devsouza.online")
+  const [serverUrl, setServerUrl] = useState(() => getBaseUrl())
   const [serverStatus, setServerStatus] = useState("verificando")
   const [serverLatency, setServerLatency] = useState(null)
   const [testingServer, setTestingServer] = useState(false)

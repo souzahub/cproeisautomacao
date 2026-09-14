@@ -71,15 +71,20 @@ def carregar_configuracao():
     }
 
 def resolver_captcha_gemini(img_bytes, api_key, modelo_preferido):
+    if not api_key:
+        return ""
     b64_img = base64.b64encode(img_bytes).decode("utf-8")
-    modelos = [modelo_preferido, "gemini-3.7-flash", "gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.1-flash-lite"]
+    modelos = []
+    if modelo_preferido:
+        modelos.append(modelo_preferido)
+    modelos += ["gemini-flash-lite-latest", "gemini-2.5-flash-lite", "gemini-3.7-flash"]
     vistos = set()
     modelos_ordenados = []
     for m in modelos:
         if m and m not in vistos:
             vistos.add(m)
             modelos_ordenados.append(m)
-    
+
     payload = {
         "contents": [{
             "parts": [
@@ -89,25 +94,28 @@ def resolver_captcha_gemini(img_bytes, api_key, modelo_preferido):
         }],
         "generationConfig": {"temperature": 0.0}
     }
-    
+
     for modelo in modelos_ordenados:
-        for tentativa in range(3):
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
-                req = urllib.request.Request(
-                    url,
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"}
-                )
-                with urllib.request.urlopen(req, timeout=12) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    texto = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    limpo = re.sub(r"[^a-zA-Z0-9]", "", texto).upper()
-                    if len(limpo) == 6:
-                        return limpo
-            except Exception:
-                time.sleep(1)
-                
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                texto = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                limpo = re.sub(r"[^a-zA-Z0-9]", "", texto).upper()
+                if len(limpo) == 6:
+                    return limpo
+        except Exception as e:
+            # 429 = cota esgotada; espera mais antes de tentar de novo
+            if "429" in str(e) or "quota" in str(e).lower():
+                time.sleep(4)
+            else:
+                time.sleep(0.8)
+
     return ""
 
 def resolver_captcha_local(img_bytes, ocr):
@@ -164,7 +172,14 @@ def resolver_captcha_local(img_bytes, ocr):
     return outros_candidatos[0] if outros_candidatos else ""
 
 def extrair_captcha_pagina(page):
-    elementos = page.query_selector_all("div[style*='data:image'], div[style*='background'], img[src*='data:image'], img[id*='Captcha'], div[id*='Captcha']")
+    elementos = []
+    for _ in range(3):
+        try:
+            elementos = page.query_selector_all("div[style*='data:image'], div[style*='background'], img[src*='data:image'], img[id*='Captcha'], div[id*='Captcha']")
+            break
+        except Exception:
+            time.sleep(1)
+
     for el in reversed(elementos):
         try:
             box = el.bounding_box()
@@ -191,37 +206,60 @@ def extrair_captcha_pagina(page):
     return None
 
 def obter_captcha(page, ocr, cfg):
+    def regenerar_imagem():
+        try:
+            link_nova_img = page.query_selector("a:has-text('Gerar Nova Imagem')")
+            if link_nova_img:
+                link_nova_img.click()
+                time.sleep(1)
+                page.wait_for_load_state("networkidle")
+                return True
+        except Exception:
+            pass
+        return False
+
     captcha_bytes = extrair_captcha_pagina(page)
+    if not captcha_bytes:
+        for _ in range(2):
+            if not regenerar_imagem():
+                break
+            captcha_bytes = extrair_captcha_pagina(page)
+            if captcha_bytes:
+                break
     if not captcha_bytes:
         return ""
 
-    if cfg.get("gemini_api_key"):
-        codigo = resolver_captcha_gemini(captcha_bytes, cfg["gemini_api_key"], cfg.get("gemini_model", "gemini-3.7-flash"))
-        if len(codigo) == 6:
-            return codigo
+    def resolver_com_gemini(captcha_bytes):
+        if cfg.get("gemini_api_key"):
+            codigo = resolver_captcha_gemini(captcha_bytes, cfg["gemini_api_key"], cfg.get("gemini_model", "gemini-3.7-flash"))
+            if len(codigo) == 6:
+                return codigo
+        return ""
 
+    ultimo_local = ""
     for _ in range(3):
-        codigo = resolver_captcha_local(captcha_bytes, ocr)
-        if len(codigo) == 6:
-            return codigo
-        
-        link_nova_img = page.query_selector("a:has-text('Gerar Nova Imagem')")
-        if link_nova_img:
-            link_nova_img.click()
-            time.sleep(1)
-            page.wait_for_load_state("networkidle")
-            captcha_bytes = extrair_captcha_pagina(page)
-            if not captcha_bytes:
-                break
-        else:
-            break
-
-    if captcha_bytes:
-        codigo = resolver_captcha_local(captcha_bytes, ocr)
+        codigo = resolver_com_gemini(captcha_bytes)
         if codigo:
             return codigo
 
-    return ""
+        codigo = resolver_captcha_local(captcha_bytes, ocr)
+        if len(codigo) == 6:
+            return codigo
+        elif codigo:
+            ultimo_local = codigo
+
+        if not regenerar_imagem():
+            break
+        captcha_bytes = extrair_captcha_pagina(page)
+        if not captcha_bytes:
+            break
+        time.sleep(1)
+
+    codigo = resolver_com_gemini(captcha_bytes)
+    if codigo:
+        return codigo
+
+    return ultimo_local if len(ultimo_local) == 6 else ""
 
 def realizar_login(page, ocr, cfg):
     print("Iniciando acesso ao portal CPROEIS...")
@@ -253,31 +291,78 @@ def realizar_login(page, ocr, cfg):
 
     for tentativa in range(1, 11):
         print(f"\nTentativa de login {tentativa}/10...")
-        page.fill("#txtLogin", cfg.get("documento", ""))
-        page.fill("#txtSenha", cfg.get("senha", ""))
-        
-        texto_captcha = obter_captcha(page, ocr, cfg)
-        print(f"Captcha do login decodificado: {texto_captcha}")
-        page.fill("#TextCaptcha", texto_captcha)
-        
-        page.click("#btnEntrar")
         try:
             page.wait_for_load_state("domcontentloaded", timeout=15000)
         except Exception:
             pass
-        time.sleep(2)
-        
+        time.sleep(1)
+
+        try:
+            page.fill("#txtLogin", cfg.get("documento", ""))
+            page.fill("#txtSenha", cfg.get("senha", ""))
+        except Exception as e:
+            print(f"Erro ao preencher credenciais: {str(e)}")
+            time.sleep(3)
+            continue
+
+        try:
+            texto_captcha = obter_captcha(page, ocr, cfg)
+        except Exception as e:
+            txt_erro = str(e)
+            if "Execution context was destroyed" in txt_erro or "navigation" in txt_erro:
+                print("Navegacao em andamento, aguardando estabilizar...")
+                time.sleep(4)
+                continue
+            print(f"Erro ao obter captcha: {txt_erro}")
+            time.sleep(3)
+            continue
+        print(f"Captcha do login decodificado: {texto_captcha}")
+
+        if len(texto_captcha) != 6:
+            print("Captcha invalido, recarregando para nova imagem...")
+            try:
+                page.keyboard.press("F5")
+                page.wait_for_load_state("load", timeout=30000)
+                page.wait_for_selector("#txtLogin", state="visible", timeout=25000)
+            except Exception:
+                pass
+            time.sleep(2)
+            continue
+
+        try:
+            page.fill("#TextCaptcha", texto_captcha)
+            page.click("#btnEntrar")
+        except Exception as e:
+            print(f"Erro ao enviar login: {str(e)}")
+            time.sleep(3)
+            continue
+
+        try:
+            page.wait_for_load_state("load", timeout=30000)
+        except Exception:
+            try:
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+            except Exception:
+                pass
+        time.sleep(3)
+
         url_atual = page.url
         if "FrmMenuVoluntario.aspx" in url_atual or "Menu" in url_atual:
             print("Login efetuado com sucesso.")
             return True
-            
-        erro_elem = page.query_selector("#lblMsg, .alert, font[color='Red']")
+
+        try:
+            erro_elem = page.query_selector("#lblMsg, .alert, font[color='Red']")
+        except Exception:
+            erro_elem = None
         if erro_elem:
-            msg_erro = erro_elem.inner_text().strip()
-            if msg_erro:
+            try:
+                msg_erro = erro_elem.inner_text().strip()
+            except Exception:
+                msg_erro = ""
+            if msg_erro and "sucesso" not in msg_erro.lower():
                 print(f"Mensagem do portal: {msg_erro}")
-            
+
     return False
 
 def navegar_para_inscricao(page):

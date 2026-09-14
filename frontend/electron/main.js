@@ -3,6 +3,10 @@ const path = require("path")
 const { spawn } = require("child_process")
 const fs = require("fs")
 
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("no-sandbox")
+}
+
 let mainWindow = null
 let currentProcess = null
 let botStatus = {
@@ -83,6 +87,49 @@ function updateStatus(newStatus) {
   }
 }
 
+function loadDotEnv(dir) {
+  const envPath = path.join(dir, ".env")
+  const result = {}
+  if (fs.existsSync(envPath)) {
+    try {
+      const content = fs.readFileSync(envPath, "utf-8")
+      content.split("\n").forEach((line) => {
+        const trimmed = line.trim()
+        if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
+          const idx = trimmed.indexOf("=")
+          const k = trimmed.substring(0, idx).trim()
+          let v = trimmed.substring(idx + 1).trim()
+          if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+            v = v.slice(1, -1)
+          }
+          result[k] = v
+        }
+      })
+    } catch {}
+  }
+  return result
+}
+
+function getMergedEnv(rootDir, customData = {}) {
+  const fileEnv = loadDotEnv(rootDir)
+  const cwdEnv = loadDotEnv(process.cwd())
+  const appDataEnv = loadDotEnv(app.getPath("userData"))
+
+  const merged = {
+    ...process.env,
+    ...fileEnv,
+    ...cwdEnv,
+    ...appDataEnv,
+    PYTHONUNBUFFERED: "1"
+  }
+
+  if (customData.gemini_api_key) merged["GEMINI_API_KEY"] = customData.gemini_api_key
+  if (customData.gemini_model) merged["GEMINI_MODEL"] = customData.gemini_model
+  if (customData.proeis_url) merged["PROEIS_URL"] = customData.proeis_url
+
+  return merged
+}
+
 ipcMain.handle("bot:status", () => botStatus)
 
 ipcMain.handle("bot:start", async (_event, { mode, clientData }) => {
@@ -92,27 +139,27 @@ ipcMain.handle("bot:start", async (_event, { mode, clientData }) => {
 
   const rootDir = getProjectRoot()
   const scriptPath = path.join(rootDir, "bot.py")
+  const env = getMergedEnv(rootDir, clientData || {})
 
-  const env = { ...process.env, PYTHONUNBUFFERED: "1" }
   env["MODO_HOMOLOGACAO"] = mode === "homologacao" ? "true" : "false"
   env["MODO_VISIVEL"] = "false"
 
   if (clientData) {
-    env["TIPO_DOCUMENTO"] = clientData.document_type || "CPF"
-    env["CPF"] = clientData.document || ""
-    env["SENHA"] = clientData.password || ""
-    env["CONVENIO"] = clientData.convenio || ""
-    env["EVENTOS_PREFERIDOS"] = clientData.preferred_events || ""
-    env["APENAS_EVENTOS_LISTADOS"] = clientData.only_listed_events ? "true" : "false"
-    env["APENAS_TITULAR"] = clientData.only_titular ? "true" : "false"
-    env["TIPO_DATA"] = clientData.tipo_data || "dias_frente"
-    env["DATA_INICIO"] = clientData.data_inicio || ""
-    env["DATA_FIM"] = clientData.data_fim || ""
-    env["META_VAGAS"] = String(clientData.meta_vagas || 1)
-    env["DIAS_A_FRENTE_INICIAL"] = String(clientData.days_forward_initial || 6)
-    env["DIAS_A_FRENTE_MAXIMO"] = String(clientData.days_forward_max || 7)
-    env["INTERVALO_SEGUNDOS"] = String(clientData.interval_seconds || 6)
-    env["TENTATIVAS_MAXIMAS"] = String(clientData.max_attempts || 120)
+    if (clientData.document_type) env["TIPO_DOCUMENTO"] = clientData.document_type
+    if (clientData.document) env["CPF"] = clientData.document
+    if (clientData.password) env["SENHA"] = clientData.password
+    if (clientData.convenio) env["CONVENIO"] = clientData.convenio
+    if (clientData.preferred_events) env["EVENTOS_PREFERIDOS"] = clientData.preferred_events
+    if (clientData.only_listed_events !== undefined) env["APENAS_EVENTOS_LISTADOS"] = clientData.only_listed_events ? "true" : "false"
+    if (clientData.only_titular !== undefined) env["APENAS_TITULAR"] = clientData.only_titular ? "true" : "false"
+    if (clientData.tipo_data) env["TIPO_DATA"] = clientData.tipo_data
+    if (clientData.data_inicio) env["DATA_INICIO"] = clientData.data_inicio
+    if (clientData.data_fim) env["DATA_FIM"] = clientData.data_fim
+    if (clientData.meta_vagas) env["META_VAGAS"] = String(clientData.meta_vagas)
+    if (clientData.days_forward_initial) env["DIAS_A_FRENTE_INICIAL"] = String(clientData.days_forward_initial)
+    if (clientData.days_forward_max) env["DIAS_A_FRENTE_MAXIMO"] = String(clientData.days_forward_max)
+    if (clientData.interval_seconds) env["INTERVALO_SEGUNDOS"] = String(clientData.interval_seconds)
+    if (clientData.max_attempts) env["TENTATIVAS_MAXIMAS"] = String(clientData.max_attempts)
   }
 
   const now = new Date()
@@ -120,7 +167,7 @@ ipcMain.handle("bot:start", async (_event, { mode, clientData }) => {
   updateStatus({ status: "running", mode, started_at: startedAt, logs_count: 0 })
 
   const pythonCmd = process.platform === "win32" ? "python" : "python3"
-  currentProcess = spawn(pythonCmd, [scriptPath], {
+  currentProcess = spawn(pythonCmd, [JSON.stringify(scriptPath)], {
     cwd: rootDir,
     env,
     shell: true
@@ -155,15 +202,15 @@ ipcMain.handle("bot:consult", async (_event, { clientData }) => {
 
   const rootDir = getProjectRoot()
   const scriptPath = path.join(rootDir, "consultar_vagas.py")
+  const env = getMergedEnv(rootDir, clientData || {})
 
-  const env = { ...process.env, PYTHONUNBUFFERED: "1" }
   env["MODO_VISIVEL"] = "false"
 
   if (clientData) {
-    env["TIPO_DOCUMENTO"] = clientData.document_type || "CPF"
-    env["CPF"] = clientData.document || ""
-    env["SENHA"] = clientData.password || ""
-    env["CONVENIO"] = clientData.convenio || ""
+    if (clientData.document_type) env["TIPO_DOCUMENTO"] = clientData.document_type
+    if (clientData.document) env["CPF"] = clientData.document
+    if (clientData.password) env["SENHA"] = clientData.password
+    if (clientData.convenio) env["CONVENIO"] = clientData.convenio
   }
 
   const now = new Date()
@@ -171,7 +218,7 @@ ipcMain.handle("bot:consult", async (_event, { clientData }) => {
   updateStatus({ status: "running", mode: "consulta", started_at: startedAt, logs_count: 0 })
 
   const pythonCmd = process.platform === "win32" ? "python" : "python3"
-  currentProcess = spawn(pythonCmd, [scriptPath], {
+  currentProcess = spawn(pythonCmd, [JSON.stringify(scriptPath)], {
     cwd: rootDir,
     env,
     shell: true

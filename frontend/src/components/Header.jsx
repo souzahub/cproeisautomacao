@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react"
+import { getBaseUrl } from "../api/client"
 
 export function Header({ title, onToggleSidebar, sidebarCollapsed, theme, onToggleTheme, onLogout }) {
   const [serverOnline, setServerOnline] = useState(true)
 
   useEffect(() => {
     async function ping() {
-      const serverUrl = localStorage.getItem("server_url") || "https://cprsautomacao.devsouza.online"
+      const serverUrl = getBaseUrl()
       try {
         const resp = await fetch(`${serverUrl}/api/health`, { method: "GET" })
         setServerOnline(resp.ok)

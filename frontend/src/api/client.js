@@ -5,7 +5,10 @@ export function getBaseUrl() {
       return custom.trim().replace(/\/+$/, "")
     }
   }
-  return "https://cprsautomacao.devsouza.online"
+  if (typeof window !== "undefined" && window.electronAPI) {
+    return "https://cprsautomacao.devsouza.online"
+  }
+  return ""
 }
 
 function getToken() {
@@ -105,18 +108,42 @@ export const settingsApi = {
 }
 
 export const botApi = {
-  start: (mode, clientId = null, clientData = null) => {
+  start: async (mode, clientId = null, clientData = null) => {
     if (window.electronAPI) {
-      return window.electronAPI.startBot(mode, clientData)
+      let mergedData = { ...(clientData || {}) }
+      try {
+        const settings = await settingsApi.get()
+        if (settings) {
+          if (settings.GEMINI_API_KEY) mergedData.gemini_api_key = settings.GEMINI_API_KEY
+          if (settings.GEMINI_MODEL) mergedData.gemini_model = settings.GEMINI_MODEL
+          if (settings.PROEIS_URL) mergedData.proeis_url = settings.PROEIS_URL
+          if (!mergedData.password && settings.SENHA) mergedData.password = settings.SENHA
+          if (!mergedData.document && settings.CPF) mergedData.document = settings.CPF
+          if (!mergedData.convenio && settings.CONVENIO) mergedData.convenio = settings.CONVENIO
+        }
+      } catch {}
+      return window.electronAPI.startBot(mode, mergedData)
     }
     return apiRequest("/api/bot/start", {
       method: "POST",
       body: JSON.stringify({ mode, client_id: clientId })
     })
   },
-  consult: (clientId = null, clientData = null) => {
+  consult: async (clientId = null, clientData = null) => {
     if (window.electronAPI) {
-      return window.electronAPI.startConsult(clientData)
+      let mergedData = { ...(clientData || {}) }
+      try {
+        const settings = await settingsApi.get()
+        if (settings) {
+          if (settings.GEMINI_API_KEY) mergedData.gemini_api_key = settings.GEMINI_API_KEY
+          if (settings.GEMINI_MODEL) mergedData.gemini_model = settings.GEMINI_MODEL
+          if (settings.PROEIS_URL) mergedData.proeis_url = settings.PROEIS_URL
+          if (!mergedData.password && settings.SENHA) mergedData.password = settings.SENHA
+          if (!mergedData.document && settings.CPF) mergedData.document = settings.CPF
+          if (!mergedData.convenio && settings.CONVENIO) mergedData.convenio = settings.CONVENIO
+        }
+      } catch {}
+      return window.electronAPI.startConsult(mergedData)
     }
     return apiRequest("/api/bot/consult", {
       method: "POST",
