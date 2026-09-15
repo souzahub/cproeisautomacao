@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "./button"
 
 const AlertDialogContext = createContext(null)
@@ -7,18 +7,19 @@ export function AlertDialog({ open: controlledOpen, onOpenChange, children }) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
   const isControlled = controlledOpen !== undefined
   const isOpen = isControlled ? controlledOpen : uncontrolledOpen
+  const [titleId, setTitleId] = useState("alert-dialog-title")
 
-  function handleOpenChange(nextOpen) {
+  const handleOpenChange = useCallback((nextOpen) => {
     if (!isControlled) {
       setUncontrolledOpen(nextOpen)
     }
     if (onOpenChange) {
       onOpenChange(nextOpen)
     }
-  }
+  }, [isControlled, onOpenChange])
 
   return (
-    <AlertDialogContext.Provider value={{ isOpen, setOpen: handleOpenChange }}>
+    <AlertDialogContext.Provider value={{ isOpen, setOpen: handleOpenChange, titleId, setTitleId }}>
       {children}
     </AlertDialogContext.Provider>
   )
@@ -46,18 +47,63 @@ export function AlertDialogTrigger({ render, children, asChild, ...props }) {
 }
 
 export function AlertDialogContent({ size = "default", children, className = "", style = {} }) {
-  const { isOpen, setOpen } = useContext(AlertDialogContext)
-  const mouseDownTargetRef = React.useRef(null)
+  const { isOpen, setOpen, titleId } = useContext(AlertDialogContext)
+  const mouseDownTargetRef = useRef(null)
+  const contentRef = useRef(null)
+  const previousActiveElementRef = useRef(null)
+  const setOpenRef = useRef(setOpen)
+  setOpenRef.current = setOpen
 
   useEffect(() => {
+    if (!isOpen) return
+
+    previousActiveElementRef.current = document.activeElement
+
     function handleKeyDown(e) {
-      if (e.key === "Escape" && isOpen) {
-        setOpen(false)
+      if (e.key === "Escape") {
+        setOpenRef.current(false)
+        return
+      }
+
+      if (e.key === "Tab" && contentRef.current) {
+        const focusable = contentRef.current.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusable.length === 0) return
+
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
       }
     }
+
     document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [isOpen, setOpen])
+
+    const timer = setTimeout(() => {
+      if (contentRef.current) {
+        if (contentRef.current.contains(document.activeElement) && document.activeElement !== contentRef.current) {
+          return
+        }
+        const cancelBtn = contentRef.current.querySelector("button")
+        if (cancelBtn) cancelBtn.focus()
+      }
+    }, 50)
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown)
+      clearTimeout(timer)
+      if (previousActiveElementRef.current && previousActiveElementRef.current.focus) {
+        previousActiveElementRef.current.focus()
+      }
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -68,7 +114,7 @@ export function AlertDialogContent({ size = "default", children, className = "",
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 110,
+        zIndex: "var(--z-tooltip, 110)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -86,6 +132,10 @@ export function AlertDialogContent({ size = "default", children, className = "",
       }}
     >
       <div
+        ref={contentRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className={`card ${className}`.trim()}
         style={{
           width: "100%",
@@ -112,9 +162,10 @@ export function AlertDialogHeader({ children, className = "", style = {} }) {
   )
 }
 
-export function AlertDialogTitle({ children, className = "", style = {} }) {
+export function AlertDialogTitle({ id, children, className = "", style = {} }) {
+  const { titleId } = useContext(AlertDialogContext)
   return (
-    <h3 className={`card-title ${className}`.trim()} style={{ fontSize: "16px", ...style }}>
+    <h3 id={id || titleId} className={`card-title ${className}`.trim()} style={{ fontSize: "16px", ...style }}>
       {children}
     </h3>
   )
@@ -181,3 +232,4 @@ export function AlertDialogAction({ children = "confirmar", onClick, variant = "
     </Button>
   )
 }
+

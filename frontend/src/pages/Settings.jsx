@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { settingsApi, getBaseUrl, syncApi } from "../api/client"
 import { getSyncQueue, clearSyncQueue, getLastSyncTime } from "../api/sync"
 import { Skeleton } from "../components/Skeleton"
+import { Button } from "../components/ui/button"
 import { PasswordInput } from "../components/ui/password-input"
 import { InfoTooltip } from "../components/ui/info-tooltip"
 import { DocumentInput } from "../components/ui/masked-text"
@@ -174,23 +175,22 @@ export function Settings() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px", minHeight: "42px", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
+            <Button
+              variant="secondary"
               onClick={handleTestServer}
               disabled={testingServer}
+              loading={testingServer}
             >
-              {testingServer ? "testando..." : "testar e salvar endereço"}
-            </button>
+              testar e salvar endereço
+            </Button>
 
-            <button
-              type="button"
-              className="btn btn-ghost"
+            <Button
+              variant="ghost"
               onClick={handleResetServerUrl}
               title="restaurar endereço original da nuvem"
             >
               restaurar padrão
-            </button>
+            </Button>
 
             {serverLatency !== null && (
               <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
@@ -214,23 +214,22 @@ export function Settings() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <button
-              type="button"
-              className="btn btn-primary"
+            <Button
+              variant="primary"
               onClick={handleSyncNow}
               disabled={syncing}
+              loading={syncing}
             >
-              {syncing ? "sincronizando..." : "sincronizar agora com a nuvem"}
-            </button>
+              sincronizar agora com a nuvem
+            </Button>
             {pendingQueue.length > 0 && (
-              <button
-                type="button"
-                className="btn btn-outline"
+              <Button
+                variant="outline"
                 onClick={handleClearQueue}
                 title="descartar alterações locais pendentes"
               >
                 limpar fila
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -563,13 +562,13 @@ export function Settings() {
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button
+          <Button
             type="submit"
-            className="btn btn-primary"
             disabled={saving || loading}
+            loading={saving}
           >
-            {saving ? "salvando..." : "salvar configurações"}
-          </button>
+            salvar configurações
+          </Button>
         </div>
       </form>
     </div>

@@ -207,7 +207,8 @@ class BotRunnerService:
                         "document_type": client.document_type or "CPF",
                         "document": client.document or "",
                         "password": client.password or "",
-                        "convenio": client.convenio or ""
+                        "convenio": client.convenio or "",
+                        "max_attempts": client.max_attempts or 120
                     }
             except Exception:
                 pass
@@ -241,6 +242,8 @@ class BotRunnerService:
             env_vars["CPF"] = client_data["document"]
             env_vars["SENHA"] = client_data["password"]
             env_vars["CONVENIO"] = client_data["convenio"]
+            if "max_attempts" in client_data:
+                env_vars["TENTATIVAS_MAXIMAS"] = str(client_data["max_attempts"])
 
         script_path = str(BASE_DIR / "consultar_vagas.py")
         proc = subprocess.Popen(

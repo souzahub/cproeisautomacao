@@ -10,11 +10,15 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login", response_model=Token)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == credentials.email).first()
+    login_id = credentials.email.strip()
+    user = db.query(User).filter(User.email.ilike(login_id)).first()
+    if not user and login_id.lower() in ("admin", "master", "admin@cproeis.local"):
+        user = db.query(User).filter(User.role == "master").first()
+
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos."
+            detail="Usuário ou senha incorretos."
         )
     if not user.is_active:
         raise HTTPException(
@@ -30,11 +34,15 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/token", response_model=Token)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == form_data.username).first()
+    login_id = form_data.username.strip()
+    user = db.query(User).filter(User.email.ilike(login_id)).first()
+    if not user and login_id.lower() in ("admin", "master", "admin@cproeis.local"):
+        user = db.query(User).filter(User.role == "master").first()
+
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos."
+            detail="Usuário ou senha incorretos."
         )
     if not user.is_active:
         raise HTTPException(

@@ -7,6 +7,8 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 def parse_eventos(texto_bruto):
+    if not texto_bruto or not isinstance(texto_bruto, str):
+        return []
     blocos = texto_bruto.split("====")
     eventos = []
     
@@ -27,6 +29,10 @@ def parse_eventos(texto_bruto):
     return eventos
 
 def gerar_pdf_comprovante(texto_eventos, caminho_pdf="comprovantes/comprovante_vagas.pdf", cpf="", page=None):
+    if not isinstance(texto_eventos, str):
+        if hasattr(texto_eventos, "context"):
+            page = texto_eventos
+        texto_eventos = ""
     eventos = parse_eventos(texto_eventos)
     data_geracao = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
     

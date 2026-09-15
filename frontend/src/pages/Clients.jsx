@@ -59,6 +59,7 @@ export function Clients() {
   }
 
   const [formData, setFormData] = useState(initialFormState)
+  const [fieldErrors, setFieldErrors] = useState({})
 
   async function loadData() {
     setLoading(true)
@@ -83,11 +84,13 @@ export function Clients() {
   function handleOpenCreate() {
     setEditingClient(null)
     setFormData(initialFormState)
+    setFieldErrors({})
     setDialogOpen(true)
   }
 
   function handleOpenEdit(client) {
     setEditingClient(client)
+    setFieldErrors({})
     setFormData({
       name: client.name,
       document_type: client.document_type || "CPF",
@@ -115,11 +118,18 @@ export function Clients() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!formData.name || !formData.document || !formData.password) {
-      setNotification({ type: "error", text: "preencha nome, documento e senha" })
+    const errors = {}
+    if (!formData.name?.trim()) errors.name = "informe o nome do cliente"
+    if (!formData.document?.trim()) errors.document = "informe o número do documento"
+    if (!formData.password?.trim()) errors.password = "informe a senha do portal"
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setNotification({ type: "error", text: "preencha todos os campos obrigatórios destacados" })
       return
     }
 
+    setFieldErrors({})
     setActionLoading(true)
     setNotification({ type: "", text: "" })
     try {
@@ -209,8 +219,20 @@ export function Clients() {
                 </>
               ) : clients.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px" }}>
-                    nenhum cliente cadastrado no momento
+                  <td colSpan="8">
+                    <div className="empty-state">
+                      <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                      <span className="empty-state-title">nenhum cliente cadastrado</span>
+                      <span className="empty-state-desc">cadastre clientes para vincular credenciais e preferências individuais de agendamento</span>
+                      <Button size="sm" onClick={handleOpenCreate} style={{ marginTop: "8px" }}>
+                        cadastrar primeiro cliente
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -296,16 +318,21 @@ export function Clients() {
           <form onSubmit={handleSubmit}>
             <div className="grid-cols-3" style={{ marginBottom: "12px" }}>
               <div className="form-group">
-                <label className="form-label" htmlFor="cli_name">nome do cliente</label>
+                <label className="form-label" htmlFor="cli_name">nome do cliente *</label>
                 <input
                   id="cli_name"
-                  className="form-input"
+                  className={`form-input ${fieldErrors.name ? "input-error" : ""}`}
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value })
+                    if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: null })
+                  }}
                   placeholder="ex: Dr. Lucas"
                   disabled={actionLoading}
+                  aria-invalid={fieldErrors.name ? "true" : undefined}
                   autoFocus
                 />
+                {fieldErrors.name && <span className="field-error-message">{fieldErrors.name}</span>}
               </div>
 
               <div className="form-group">
@@ -323,26 +350,36 @@ export function Clients() {
               </div>
 
               <div className="form-group">
-                <label className="form-label" htmlFor="cli_doc">número documento</label>
+                <label className="form-label" htmlFor="cli_doc">número documento *</label>
                 <DocumentInput
                   id="cli_doc"
                   value={formData.document}
-                  onChange={(e) => setFormData({ ...formData, document: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, document: e.target.value })
+                    if (fieldErrors.document) setFieldErrors({ ...fieldErrors, document: null })
+                  }}
                   placeholder="000.000.000-00"
+                  error={!!fieldErrors.document}
                   disabled={actionLoading}
                 />
+                {fieldErrors.document && <span className="field-error-message">{fieldErrors.document}</span>}
               </div>
             </div>
 
             <div className="form-group" style={{ marginBottom: "12px" }}>
-              <label className="form-label" htmlFor="cli_pass">senha do portal proeis</label>
+              <label className="form-label" htmlFor="cli_pass">senha do portal proeis *</label>
               <PasswordInput
                 id="cli_pass"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value })
+                  if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: null })
+                }}
                 placeholder="senha do portal proeis"
+                error={!!fieldErrors.password}
                 disabled={actionLoading}
               />
+              {fieldErrors.password && <span className="field-error-message">{fieldErrors.password}</span>}
             </div>
 
             <div style={{ padding: "12px", backgroundColor: "var(--bg-surface-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", marginBottom: "12px" }}>

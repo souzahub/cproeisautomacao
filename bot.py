@@ -289,8 +289,9 @@ def realizar_login(page, ocr, cfg):
         pass
     time.sleep(1)
 
-    for tentativa in range(1, 11):
-        print(f"\nTentativa de login {tentativa}/10...")
+    max_login = max(1, int(cfg.get("tentativas_maximas", 10)))
+    for tentativa in range(1, max_login + 1):
+        print(f"\nTentativa de login {tentativa}/{max_login}...")
         try:
             page.wait_for_load_state("domcontentloaded", timeout=15000)
         except Exception:

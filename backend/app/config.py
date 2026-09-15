@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_PATH = BASE_DIR / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
-PORT = int(os.getenv("PORT", "3000"))
+PORT = int(os.getenv("PORT", "8000"))
 JWT_SECRET = os.getenv("JWT_SECRET", "proeis_chave_secreta_jwt_padrao_2026_antigravity")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = 60 * 24

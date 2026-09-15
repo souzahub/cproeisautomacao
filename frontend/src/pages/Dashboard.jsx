@@ -502,33 +502,33 @@ export function Dashboard({ user, onNavigateTab }) {
           </div>
 
           <div style={{ display: "flex", gap: "10px" }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
+            <Button
+              variant="secondary"
               onClick={handleConsult}
               disabled={isRunning || actionLoading}
+              loading={actionLoading && statusInfo.mode === "consulta"}
             >
-              {actionLoading && statusInfo.mode === "consulta" ? "consultando..." : "consultar vagas"}
-            </button>
+              consultar vagas
+            </Button>
 
             {!isRunning ? (
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Button
+                variant="primary"
                 onClick={handleStart}
                 disabled={actionLoading}
+                loading={actionLoading && statusInfo.mode !== "consulta"}
               >
-                {actionLoading && statusInfo.mode !== "consulta" ? "iniciando..." : "iniciar automação"}
-              </button>
+                iniciar automação
+              </Button>
             ) : (
-              <button
-                type="button"
-                className="btn btn-danger"
+              <Button
+                variant="destructive"
                 onClick={handleStop}
                 disabled={actionLoading}
+                loading={actionLoading}
               >
-                {actionLoading ? "interrompendo..." : "interromper automação"}
-              </button>
+                interromper automação
+              </Button>
             )}
           </div>
         </div>
@@ -651,7 +651,7 @@ export function Dashboard({ user, onNavigateTab }) {
         {initialLoading ? (
           <Skeleton height="360px" />
         ) : (
-          <div className="terminal-box" ref={logTerminalRef}>
+          <div className="terminal-box" ref={logTerminalRef} role="log" aria-live="polite" tabIndex={0} aria-label="Terminal de logs da automação">
             {logs.length === 0 ? (
               <div style={{ color: "var(--text-muted)", fontStyle: "italic", padding: "8px 0" }}>
                 aguardando inicialização da automação...
@@ -696,6 +696,7 @@ export function Dashboard({ user, onNavigateTab }) {
                 className="form-input"
                 style={{ padding: "6px 10px", fontSize: "12px" }}
                 placeholder="buscar no histórico..."
+                aria-label="Buscar no histórico"
                 value={historySearchQuery}
                 onChange={(e) => setHistorySearchQuery(e.target.value)}
               />
@@ -705,6 +706,7 @@ export function Dashboard({ user, onNavigateTab }) {
               <select
                 className="form-select"
                 style={{ padding: "6px 10px", fontSize: "12px" }}
+                aria-label="Filtrar por usuário"
                 value={historyFilterUser}
                 onChange={(e) => setHistoryFilterUser(e.target.value)}
               >
@@ -719,6 +721,7 @@ export function Dashboard({ user, onNavigateTab }) {
               <select
                 className="form-select"
                 style={{ padding: "6px 10px", fontSize: "12px" }}
+                aria-label="Filtrar por cliente"
                 value={historyFilterClient}
                 onChange={(e) => setHistoryFilterClient(e.target.value)}
               >
@@ -733,6 +736,7 @@ export function Dashboard({ user, onNavigateTab }) {
               <select
                 className="form-select"
                 style={{ padding: "6px 10px", fontSize: "12px" }}
+                aria-label="Filtrar por status"
                 value={historyFilterStatus}
                 onChange={(e) => setHistoryFilterStatus(e.target.value)}
               >
@@ -748,6 +752,7 @@ export function Dashboard({ user, onNavigateTab }) {
               <select
                 className="form-select"
                 style={{ padding: "6px 10px", fontSize: "12px" }}
+                aria-label="Filtrar por modo de operação"
                 value={historyFilterMode}
                 onChange={(e) => setHistoryFilterMode(e.target.value)}
               >
@@ -759,9 +764,9 @@ export function Dashboard({ user, onNavigateTab }) {
             </div>
 
             {(historySearchQuery || historyFilterUser || historyFilterClient || historyFilterStatus !== "todos" || historyFilterMode !== "todos") && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
+              <Button
+                variant="ghost"
+                size="sm"
                 style={{ fontSize: "11px", padding: "6px 10px" }}
                 onClick={() => {
                   setHistorySearchQuery("")
@@ -772,7 +777,7 @@ export function Dashboard({ user, onNavigateTab }) {
                 }}
               >
                 limpar filtros
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -800,8 +805,15 @@ export function Dashboard({ user, onNavigateTab }) {
                 </>
               ) : filteredHistory.length === 0 ? (
                 <tr>
-                  <td colSpan={isMaster ? 8 : 7} style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px" }}>
-                    nenhum registro de histórico encontrado
+                  <td colSpan={isMaster ? 8 : 7}>
+                    <div className="empty-state">
+                      <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      <span className="empty-state-title">nenhum registro no histórico</span>
+                      <span className="empty-state-desc">os ciclos de automação e consultas aparecerão aqui quando executados</span>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -816,15 +828,15 @@ export function Dashboard({ user, onNavigateTab }) {
                     <td>{item.finished_at ? new Date(item.finished_at).toLocaleString("pt-BR") : "-"}</td>
                     {isMaster && (
                       <td style={{ textAlign: "right" }}>
-                        <button
-                          type="button"
-                          className="btn-pill-danger"
+                        <Button
+                          variant="destructive"
+                          size="sm"
                           style={{ padding: "3px 8px", fontSize: "11px" }}
                           onClick={() => setItemToDelete(item)}
                           title="remover registro do histórico"
                         >
                           remover
-                        </button>
+                        </Button>
                       </td>
                     )}
                   </tr>

@@ -44,6 +44,7 @@ export function Users({ currentUser }) {
     password: "",
     role: "operador"
   })
+  const [fieldErrors, setFieldErrors] = useState({})
   const [actionLoading, setActionLoading] = useState(false)
   const [notification, setNotification] = useState({ type: "", text: "" })
 
@@ -63,6 +64,12 @@ export function Users({ currentUser }) {
     loadUsers()
   }, [])
 
+  function handleOpenCreate() {
+    setNewUser({ email: "", name: "", password: "", role: "operador" })
+    setFieldErrors({})
+    setDialogOpen(true)
+  }
+
   function handleOpenEdit(user) {
     setEditUserData({
       id: user.id,
@@ -71,16 +78,23 @@ export function Users({ currentUser }) {
       password: "",
       role: user.role || "operador"
     })
+    setFieldErrors({})
     setEditDialogOpen(true)
   }
 
   async function handleCreateUser(e) {
     e.preventDefault()
-    if (!newUser.email || !newUser.password) {
-      setNotification({ type: "error", text: "preencha email/usuário e senha" })
+    const errors = {}
+    if (!newUser.email?.trim()) errors.email = "informe o usuário/e-mail de acesso"
+    if (!newUser.password?.trim()) errors.password = "informe a senha de acesso"
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setNotification({ type: "error", text: "preencha todos os campos destacados" })
       return
     }
 
+    setFieldErrors({})
     setActionLoading(true)
     setNotification({ type: "", text: "" })
     try {
@@ -196,8 +210,18 @@ export function Users({ currentUser }) {
                 </>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px" }}>
-                    nenhum usuário cadastrado
+                  <td colSpan="6">
+                    <div className="empty-state">
+                      <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                      <span className="empty-state-title">nenhum operador cadastrado</span>
+                      <span className="empty-state-desc">cadastre novos operadores ou administradores para gerenciar os acessos à plataforma</span>
+                      <Button size="sm" onClick={() => setDialogOpen(true)} style={{ marginTop: "8px" }}>
+                        cadastrar primeiro usuário
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -279,27 +303,37 @@ export function Users({ currentUser }) {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="user_email">usuário / login</label>
+              <label className="form-label" htmlFor="user_email">usuário / login *</label>
               <input
                 id="user_email"
                 type="text"
-                className="form-input"
+                className={`form-input ${fieldErrors.email ? "input-error" : ""}`}
                 value={newUser.email}
-                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                onChange={(e) => {
+                  setNewUser({ ...newUser, email: e.target.value })
+                  if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: null })
+                }}
                 placeholder="ex: operador1 ou email"
                 disabled={actionLoading}
+                aria-invalid={fieldErrors.email ? "true" : undefined}
               />
+              {fieldErrors.email && <span className="field-error-message">{fieldErrors.email}</span>}
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="user_password">senha</label>
+              <label className="form-label" htmlFor="user_password">senha *</label>
               <PasswordInput
                 id="user_password"
                 value={newUser.password}
-                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                onChange={(e) => {
+                  setNewUser({ ...newUser, password: e.target.value })
+                  if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: null })
+                }}
                 placeholder="senha de acesso"
+                error={!!fieldErrors.password}
                 disabled={actionLoading}
               />
+              {fieldErrors.password && <span className="field-error-message">{fieldErrors.password}</span>}
             </div>
 
             <div className="form-group">
@@ -327,9 +361,9 @@ export function Users({ currentUser }) {
               </Button>
               <Button
                 type="submit"
-                disabled={actionLoading}
+                loading={actionLoading}
               >
-                {actionLoading ? "salvando..." : "salvar cadastro"}
+                salvar cadastro
               </Button>
             </DialogFooter>
           </form>

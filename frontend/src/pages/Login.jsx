@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { authApi } from "../api/client"
 import { PasswordInput } from "../components/ui/password-input"
+import { Button } from "../components/ui/button"
 
 export function Login({ onLoginSuccess, theme, onToggleTheme }) {
   const [email, setEmail] = useState("")
@@ -8,15 +9,22 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState({})
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError("")
-    if (!email || !password) {
+    const errors = {}
+    if (!email.trim()) errors.email = true
+    if (!password.trim()) errors.password = true
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
       setError("preencha usuário e senha para continuar")
       return
     }
 
+    setFieldErrors({})
     setLoading(true)
     try {
       const data = await authApi.login(email.trim(), password)
@@ -37,7 +45,7 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <rect width="18" height="18" x="3" y="3" rx="2" />
                   <path d="m9 12 2 2 4-4" />
                 </svg>
@@ -47,18 +55,18 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
               {onToggleTheme && (
                 <button
                   type="button"
-                  className="btn btn-ghost btn-icon"
+                  className="btn-ghost btn-icon"
                   onClick={onToggleTheme}
                   title={theme === "light" ? "alternar para tema escuro" : "alternar para tema claro"}
                   aria-label="alternar tema"
                   style={{ width: "36px", height: "36px" }}
                 >
                   {theme === "light" ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                     </svg>
                   ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <circle cx="12" cy="12" r="5" />
                       <line x1="12" y1="1" x2="12" y2="3" />
                       <line x1="12" y1="21" x2="12" y2="23" />
@@ -79,8 +87,8 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
           </div>
 
           {error && (
-            <div className="login-error-banner" style={{ marginTop: "16px" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <div className="login-error-banner" style={{ marginTop: "16px" }} role="alert">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -95,11 +103,15 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
               <input
                 id="login_email"
                 type="text"
-                className="form-input"
+                className={`form-input ${fieldErrors.email ? "input-error" : ""}`}
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: false })
+                }}
                 placeholder="seu usuário ou e-mail"
                 disabled={loading}
+                aria-invalid={fieldErrors.email ? "true" : undefined}
                 autoFocus
                 autoComplete="username"
               />
@@ -110,16 +122,21 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
               <PasswordInput
                 id="login_password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: false })
+                }}
                 placeholder="sua senha"
+                error={fieldErrors.password}
                 disabled={loading}
                 autoComplete="current-password"
               />
             </div>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-              <label className="form-checkbox-group" style={{ marginBottom: 0 }}>
+              <label className="form-checkbox-group" htmlFor="login_remember" style={{ marginBottom: 0 }}>
                 <input
+                  id="login_remember"
                   type="checkbox"
                   className="form-checkbox"
                   checked={rememberMe}
@@ -129,14 +146,15 @@ export function Login({ onLoginSuccess, theme, onToggleTheme }) {
               </label>
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary"
+              variant="primary"
               style={{ width: "100%", marginTop: "4px" }}
               disabled={loading}
+              loading={loading}
             >
-              {loading ? "entrando..." : "acessar painel"}
-            </button>
+              acessar painel
+            </Button>
           </form>
         </div>
       </div>

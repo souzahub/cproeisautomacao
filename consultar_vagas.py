@@ -93,13 +93,14 @@ def consultar():
                         else:
                             print(linha)
                     print("\n" + "="*60)
+                if conteudo.strip():
+                    doc_cliente = cfg.get("documento", "").replace(".", "").replace("-", "").strip()
+                    nome_arq = f"comprovantes/comprovante_{doc_cliente or 'vagas'}.pdf" if doc_cliente else "comprovantes/comprovante_vagas.pdf"
+                    caminho_pdf = gerar_pdf_comprovante(conteudo, nome_arq, cfg.get("documento", ""), page=page)
+                    if caminho_pdf:
+                        print(f"Comprovante PDF gerado com sucesso: {caminho_pdf}")
                 else:
                     print("Nenhum evento registrado encontrado no periodo.")
-
-                caminho_pdf = gerar_pdf_comprovante(page, cfg)
-                if caminho_pdf:
-                    print(f"Comprovante PDF gerado com sucesso: {caminho_pdf}")
-                else:
                     print("Consulta finalizada.")
 
                 browser.close()

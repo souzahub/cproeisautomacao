@@ -44,6 +44,6 @@ COPY --from=frontend-builder /build/dist /app/frontend/dist
 
 RUN mkdir -p /app/data /app/comprovantes
 
-EXPOSE 3000
+EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-3000}"]
+CMD ["sh", "-c", "uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

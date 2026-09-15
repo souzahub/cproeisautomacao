@@ -195,8 +195,10 @@ export async function loginProeisDirect(clientData, settings, emitLog) {
 
   let currentHtml = typeof initResp.data === "string" ? initResp.data : JSON.stringify(initResp.data)
 
-  for (let tentativa = 1; tentativa <= 6; tentativa++) {
-    emitLog(`Tentativa de login ${tentativa}/6...`)
+  const maxTentativas = Number(clientData?.max_attempts) || Number(settings?.TENTATIVAS_MAXIMAS) || 20
+
+  for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+    emitLog(`Tentativa de login ${tentativa}/${maxTentativas}...`)
 
     const aspFields = parseAspnetFields(currentHtml)
     const captchaB64 = await extractCaptchaBase64(currentHtml, targetUrl)

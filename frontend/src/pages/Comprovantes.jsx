@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { comprovantesApi, getBaseUrl } from "../api/client"
 import { Skeleton } from "../components/Skeleton"
+import { Button } from "../components/ui/button"
 
 export function Comprovantes() {
   const [comprovantes, setComprovantes] = useState([])
@@ -73,7 +74,7 @@ export function Comprovantes() {
   }
 
   return (
-    <div className="content-body">
+    <div>
       {errorMsg && <div className="alert-error">{errorMsg}</div>}
 
       <div className="card">
@@ -82,13 +83,15 @@ export function Comprovantes() {
             <h3 className="card-title">comprovantes salvos</h3>
             <p className="card-desc">documentos em PDF gerados automaticamente após cada agendamento</p>
           </div>
-          <button
-            className="btn btn-secondary btn-sm"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={loadComprovantes}
             disabled={loading}
+            loading={loading}
           >
             atualizar lista
-          </button>
+          </Button>
         </div>
 
         <div className="table-container">
@@ -110,8 +113,17 @@ export function Comprovantes() {
                 </>
               ) : comprovantes.length === 0 ? (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px" }}>
-                    nenhum comprovante gerado até o momento
+                  <td colSpan="4">
+                    <div className="empty-state">
+                      <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                      </svg>
+                      <span className="empty-state-title">nenhum comprovante gerado</span>
+                      <span className="empty-state-desc">os comprovantes oficiais em PDF serão armazenados automaticamente quando as vagas forem agendadas</span>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -121,14 +133,15 @@ export function Comprovantes() {
                     <td>{formatBytes(item.size_bytes)}</td>
                     <td>{item.modified_at}</td>
                     <td>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleOpenOrDownload(item)}
                         disabled={downloadingFile === item.name}
+                        loading={downloadingFile === item.name}
                       >
-                        {downloadingFile === item.name ? "baixando..." : item.is_local ? "abrir PDF" : "baixar PDF"}
-                      </button>
+                        {item.is_local ? "abrir PDF" : "baixar PDF"}
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -140,4 +153,5 @@ export function Comprovantes() {
     </div>
   )
 }
+
 

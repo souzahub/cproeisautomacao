@@ -13,20 +13,21 @@ const CACHE_USERS_KEY = "cproeis_cache_users"
 const CACHE_SETTINGS_KEY = "cproeis_cache_settings"
 
 export function getBaseUrl() {
-  if (typeof window !== "undefined" && window.localStorage) {
-    const custom = localStorage.getItem("server_url")
+  if (typeof window !== "undefined") {
+    const custom = window.localStorage ? localStorage.getItem("server_url") : null
     if (custom && custom.trim()) {
       return custom.trim().replace(/\/+$/, "")
+    }
+    // No navegador (web / localhost), usar caminho relativo para chamar o backend local/servidor atual
+    if (window.location && window.location.origin && window.location.origin.startsWith("http")) {
+      return ""
     }
   }
   const envUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL)) || ""
   if (envUrl && envUrl.trim()) {
     return envUrl.trim().replace(/\/+$/, "")
   }
-  if (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.startsWith("http") && !window.location.origin.includes("localhost") && !window.location.origin.includes("127.0.0.1")) {
-    return window.location.origin
-  }
-  return "https://cprsautomacao.devsouza.online"
+  return "http://127.0.0.1:8000"
 }
 
 function getToken() {
@@ -53,6 +54,16 @@ export async function apiRequest(endpoint, options = {}) {
   if (response.status === 401) {
     localStorage.removeItem("auth_token")
     localStorage.removeItem("auth_user")
+    if (endpoint.includes("/auth/login")) {
+      let errorMsg = "Email ou senha incorretos."
+      try {
+        const errData = await response.json()
+        if (errData && errData.detail) {
+          errorMsg = errData.detail
+        }
+      } catch {}
+      throw new Error(errorMsg)
+    }
     throw new Error("Sessao expirada.")
   }
 
