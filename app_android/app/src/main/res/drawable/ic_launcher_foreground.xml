@@ -1,0 +1,23 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.6"
+        android:scaleY="0.6"
+        android:translateX="21.6"
+        android:translateY="21.6">
+        <!-- Escudo de Proteção CPROEIS -->
+        <path
+            android:fillColor="#2563EB"
+            android:pathData="M54,12 L20,26 L20,54 C20,74.8 34.6,93.8 54,98 C73.4,93.8 88,74.8 88,54 L88,26 L54,12 Z" />
+        <path
+            android:fillColor="#3B82F6"
+            android:pathData="M54,16 L24,28.5 L24,54 C24,72.5 37,89.5 54,93.5 C71,89.5 84,72.5 84,54 L84,28.5 L54,16 Z" />
+        <!-- Ícone Central: Relâmpago / Automação / Vaga -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M52,32 L38,56 L50,56 L46,76 L68,48 L56,48 Z" />
+    </group>
+</vector>
