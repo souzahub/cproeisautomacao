@@ -1,0 +1,216 @@
+package com.cproeis.app.ui.dashboard
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import com.cproeis.app.R
+import com.cproeis.app.api.ApiClient
+import com.cproeis.app.data.model.BotStartRequest
+import com.cproeis.app.data.model.ClientProfileModel
+import com.cproeis.app.databinding.FragmentDashboardBinding
+import com.cproeis.app.service.BotForegroundService
+import kotlinx.coroutines.*
+
+class DashboardFragment : Fragment() {
+
+    private var _binding: FragmentDashboardBinding? = null
+    private val binding get() = _binding!!
+
+    private var currentClient: ClientProfileModel? = null
+    private var isRunning = false
+    private var pollJob: Job? = null
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentDashboardBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.swipeRefresh.setOnRefreshListener {
+            loadDashboardData()
+        }
+
+        binding.btnStartHomolog.setOnClickListener {
+            startAutomation("homologacao")
+        }
+
+        binding.btnStartProd.setOnClickListener {
+            startAutomation("producao")
+        }
+
+        binding.btnStop.setOnClickListener {
+            stopAutomation()
+        }
+
+        loadDashboardData()
+        startPolling()
+    }
+
+    private fun loadDashboardData() {
+        binding.swipeRefresh.isRefreshing = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val api = ApiClient.getService(requireContext())
+
+                // 1. Carregar dados do cliente do servidor
+                val clientsRes = api.listClients()
+                if (clientsRes.isSuccessful && !clientsRes.body().isNullOrEmpty()) {
+                    currentClient = clientsRes.body()!!.first()
+                    updateClientUI(currentClient!!)
+                }
+
+                // 2. Carregar status
+                val statusRes = api.getBotStatus()
+                if (statusRes.isSuccessful && statusRes.body() != null) {
+                    updateStatusUI(statusRes.body()!!.status, statusRes.body()!!.mode)
+                }
+
+                // 3. Carregar resumo de vagas
+                val reportRes = api.getVagasReport()
+                if (reportRes.isSuccessful && reportRes.body() != null) {
+                    val summary = reportRes.body()!!.summary
+                    val total = summary?.total ?: (reportRes.body()!!.vagas?.size ?: 0)
+                    val titular = summary?.titular ?: 0
+                    val reserva = summary?.reserva ?: 0
+
+                    binding.tvStatTotal.text = total.toString()
+                    binding.tvStatTitular.text = titular.toString()
+                    binding.tvStatReserva.text = reserva.toString()
+                }
+            } catch (e: Exception) {
+                // Erro de conexão
+            } finally {
+                _binding?.swipeRefresh?.isRefreshing = false
+            }
+        }
+    }
+
+    private fun startPolling() {
+        pollJob?.cancel()
+        pollJob = viewLifecycleOwner.lifecycleScope.launch {
+            while (isActive) {
+                try {
+                    val api = ApiClient.getService(requireContext())
+                    val statusRes = api.getBotStatus()
+                    if (statusRes.isSuccessful && statusRes.body() != null) {
+                        val status = statusRes.body()!!.status
+                        val mode = statusRes.body()!!.mode
+                        updateStatusUI(status, mode)
+                    }
+
+                    // Obter logs para atualizar ciclo em tempo real
+                    val logsRes = api.getBotLogs(0)
+                    if (logsRes.isSuccessful && logsRes.body() != null) {
+                        parseProgressFromLogs(logsRes.body()!!.logs)
+                    }
+                } catch (e: Exception) {
+                    // Ignora falhas pontuais de poll
+                }
+                delay(2500)
+            }
+        }
+    }
+
+    private fun parseProgressFromLogs(logs: List<com.cproeis.app.data.model.LogEntryModel>) {
+        if (logs.isEmpty()) return
+
+        var currentCycle = 1
+        val maxCycles = currentClient?.max_attempts ?: 60
+        var currentVagas = 0
+        val metaVagas = currentClient?.meta_vagas ?: 1
+
+        for (i in logs.indices.reversed()) {
+            val msg = logs[i].message
+
+            val cycleMatch = Regex("Ciclo\\s+(\\d+)/(\\d+)", RegexOption.IGNORE_CASE).find(msg)
+            if (cycleMatch != null && currentCycle == 1) {
+                currentCycle = cycleMatch.groupValues[1].toIntOrNull() ?: 1
+            }
+
+            val vagaMatch = Regex("(?:Progresso:\\s*|\\()(\\d+)/(\\d+)", RegexOption.IGNORE_CASE).find(msg)
+            if (vagaMatch != null && currentVagas == 0) {
+                currentVagas = vagaMatch.groupValues[1].toIntOrNull() ?: 0
+            }
+        }
+
+        binding.tvCycleCount.text = "Tentativa: $currentCycle de $maxCycles"
+        binding.tvVagasCount.text = "Meta: $currentVagas de $metaVagas vaga(s)"
+        val percent = if (maxCycles > 0) (currentCycle * 100) / maxCycles else 0
+        binding.pbAttempts.progress = percent
+    }
+
+    private fun updateClientUI(client: ClientProfileModel) {
+        binding.tvClientName.text = client.name
+        binding.tvClientDoc.text = "Doc: ${client.document ?: "-"}"
+        binding.tvClientConvenio.text = "Convênio: ${client.convenio ?: "HCPM - RAS"}"
+        binding.tvClientEvents.text = "Eventos: ${client.preferred_events ?: "Todos os eventos cadastrados"}"
+    }
+
+    private fun updateStatusUI(status: String, mode: String) {
+        isRunning = status == "running"
+
+        binding.tvRobotStatus.text = "STATUS: ${status.uppercase()}"
+        binding.tvModeBadge.text = mode.uppercase()
+
+        if (isRunning) {
+            binding.tvRobotStatus.setTextColor(resources.getColor(R.color.success, null))
+            binding.btnStartHomolog.visibility = View.GONE
+            binding.btnStartProd.visibility = View.GONE
+            binding.btnStop.visibility = View.VISIBLE
+        } else {
+            binding.tvRobotStatus.setTextColor(resources.getColor(R.color.text_primary, null))
+            binding.btnStartHomolog.visibility = View.VISIBLE
+            binding.btnStartProd.visibility = View.VISIBLE
+            binding.btnStop.visibility = View.GONE
+        }
+    }
+
+    private fun startAutomation(mode: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val api = ApiClient.getService(requireContext())
+                val res = api.startBot(BotStartRequest(mode = mode, client_id = currentClient?.id))
+                if (res.isSuccessful && res.body()?.success == true) {
+                    Toast.makeText(context, "Automação iniciada em modo $mode!", Toast.LENGTH_SHORT).show()
+                    BotForegroundService.startService(requireContext())
+                    loadDashboardData()
+                } else {
+                    Toast.makeText(context, res.body()?.message ?: "Falha ao iniciar", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erro: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun stopAutomation() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val api = ApiClient.getService(requireContext())
+                val res = api.stopBot()
+                if (res.isSuccessful) {
+                    Toast.makeText(context, "Automação interrompida", Toast.LENGTH_SHORT).show()
+                    BotForegroundService.stopService(requireContext())
+                    loadDashboardData()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erro ao parar: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        pollJob?.cancel()
+        _binding = null
+        super.onDestroyView()
+    }
+}

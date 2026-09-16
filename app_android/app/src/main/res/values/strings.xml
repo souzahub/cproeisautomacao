@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">CPROEIS Mobile</string>
+    <string name="nav_dashboard">Automação</string>
+    <string name="nav_vagas">Minhas Vagas</string>
+    <string name="nav_logs">Terminal Logs</string>
+    
+    <string name="title_login">Entrar no CPROEIS</string>
+    <string name="desc_login">Acesse com sua conta para gerenciar e executar a busca de vagas</string>
+    <string name="email_hint">E-mail ou Usuário</string>
+    <string name="password_hint">Senha</string>
+    <string name="server_url_hint">Servidor (ex: https://cprsautomacao.devsouza.online)</string>
+    <string name="btn_login">Entrar no Sistema</string>
+    
+    <string name="btn_start_homolog">Homologação (Teste)</string>
+    <string name="btn_start_prod">Produção (Inscrição Real)</string>
+    <string name="btn_stop">Interromper Busca</string>
+    <string name="btn_consult">Consultar Vagas</string>
+    <string name="btn_print_summary">Imprimir Resumo da Busca</string>
+</resources>
