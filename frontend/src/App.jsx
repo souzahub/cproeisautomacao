@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { authApi } from "./api/client"
+import { syncWithCloud } from "./api/sync"
 import { Login } from "./pages/Login"
 import { Layout } from "./components/Layout"
 import { Skeleton } from "./components/Skeleton"
@@ -45,6 +46,15 @@ export function App() {
       }
     }
     checkAuth()
+
+    function handleOnline() {
+      const token = localStorage.getItem("auth_token")
+      if (token) {
+        syncWithCloud(token).catch(() => {})
+      }
+    }
+    window.addEventListener("online", handleOnline)
+    return () => window.removeEventListener("online", handleOnline)
   }, [])
 
   function handleLogout() {

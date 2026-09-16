@@ -20,23 +20,12 @@ export function getBaseUrl() {
       return custom.trim().replace(/\/+$/, "")
     }
 
-    const isNative = Capacitor.isNativePlatform() || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
-    if (!isNative) {
-      if (window.location && window.location.origin && window.location.origin.startsWith("http")) {
-        if (!window.location.port || window.location.port === "5173" || window.location.port === "3000") {
-          const envUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL)) || ""
-          if (envUrl && envUrl.trim()) return envUrl.trim().replace(/\/+$/, "")
-          return "http://127.0.0.1:8000"
-        }
-        return ""
-      }
+    const envUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL)) || ""
+    if (envUrl && envUrl.trim()) {
+      return envUrl.trim().replace(/\/+$/, "")
     }
   }
 
-  const envUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL)) || ""
-  if (envUrl && envUrl.trim()) {
-    return envUrl.trim().replace(/\/+$/, "")
-  }
   return "https://cprsautomacao.devsouza.online"
 }
 
@@ -112,6 +101,10 @@ export const authApi = {
       })
       if (res && res.user) {
         saveOfflineUser(email, password, res.user)
+        // Auto-sincronizar fila pendente offline no login com sucesso
+        if (res.access_token) {
+          syncWithCloud(res.access_token).catch(() => {})
+        }
       }
       return res
     } catch (err) {

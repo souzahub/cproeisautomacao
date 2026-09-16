@@ -11,6 +11,9 @@ import com.cproeis.app.api.ApiClient
 import com.cproeis.app.databinding.FragmentVagasBinding
 import kotlinx.coroutines.launch
 
+import android.view.animation.AnimationUtils
+import com.cproeis.app.R
+
 class VagasFragment : Fragment() {
 
     private var _binding: FragmentVagasBinding? = null
@@ -32,14 +35,19 @@ class VagasFragment : Fragment() {
         binding.rvVagas.adapter = adapter
 
         binding.swipeRefreshVagas.setOnRefreshListener {
-            loadVagas()
+            loadVagas(showSkeleton = false)
         }
 
-        loadVagas()
+        loadVagas(showSkeleton = true)
     }
 
-    private fun loadVagas() {
-        binding.pbLoading.visibility = View.VISIBLE
+    private fun loadVagas(showSkeleton: Boolean = false) {
+        if (showSkeleton) {
+            binding.skeletonVagas.root.visibility = View.VISIBLE
+            val pulse = AnimationUtils.loadAnimation(requireContext(), R.anim.skeleton_pulse)
+            binding.skeletonVagas.root.startAnimation(pulse)
+            binding.rvVagas.visibility = View.GONE
+        }
         binding.tvEmptyState.visibility = View.GONE
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -54,6 +62,8 @@ class VagasFragment : Fragment() {
                     binding.tvTotalVagasHeader.text = "${list.size} vaga(s)"
                     if (list.isEmpty()) {
                         binding.tvEmptyState.visibility = View.VISIBLE
+                    } else {
+                        binding.rvVagas.visibility = View.VISIBLE
                     }
                 } else {
                     binding.tvEmptyState.visibility = View.VISIBLE
@@ -62,8 +72,13 @@ class VagasFragment : Fragment() {
                 binding.tvEmptyState.text = "Falha ao carregar vagas: ${e.localizedMessage}"
                 binding.tvEmptyState.visibility = View.VISIBLE
             } finally {
-                binding.pbLoading.visibility = View.GONE
-                _binding?.swipeRefreshVagas?.isRefreshing = false
+                _binding?.let { b ->
+                    if (b.skeletonVagas.root.visibility == View.VISIBLE) {
+                        b.skeletonVagas.root.clearAnimation()
+                        b.skeletonVagas.root.visibility = View.GONE
+                    }
+                    b.swipeRefreshVagas.isRefreshing = false
+                }
             }
         }
     }

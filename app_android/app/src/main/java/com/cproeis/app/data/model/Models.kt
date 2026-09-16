@@ -3,8 +3,9 @@ package com.cproeis.app.data.model
 import com.google.gson.annotations.SerializedName
 
 data class LoginRequest(
-    val username: String,
-    val password: String
+    val email: String,
+    val password: String,
+    val username: String? = null
 )
 
 data class LoginResponse(
@@ -21,16 +22,24 @@ data class UserModel(
 )
 
 data class ClientProfileModel(
-    val id: Int,
-    val name: String,
-    val document: String?,
-    val document_type: String?,
-    val convenio: String?,
-    val preferred_events: String?,
-    val preferred_hours: String?,
-    val meta_vagas: Int?,
-    val max_attempts: Int?,
-    val is_active: Boolean?
+    @SerializedName("id") val id: Int,
+    @SerializedName("name") val name: String,
+    @SerializedName("document") val document: String?,
+    @SerializedName("document_type") val document_type: String?,
+    @SerializedName("convenio") val convenio: String?,
+    @SerializedName("preferred_events") val preferred_events: String?,
+    @SerializedName("preferred_hours") val preferred_hours: String?,
+    @SerializedName("only_listed_events") val only_listed_events: Boolean? = false,
+    @SerializedName("only_titular") val only_titular: Boolean? = false,
+    @SerializedName("tipo_data") val tipo_data: String? = "dias_frente",
+    @SerializedName("data_inicio") val data_inicio: String? = null,
+    @SerializedName("data_fim") val data_fim: String? = null,
+    @SerializedName("days_forward_initial") val days_forward_initial: Int? = 6,
+    @SerializedName("days_forward_max") val days_forward_max: Int? = 7,
+    @SerializedName("interval_seconds") val interval_seconds: Int? = 6,
+    @SerializedName("meta_vagas") val meta_vagas: Int? = 1,
+    @SerializedName("max_attempts") val max_attempts: Int? = 120,
+    @SerializedName("is_active") val is_active: Boolean? = true
 )
 
 data class BotStatusResponse(

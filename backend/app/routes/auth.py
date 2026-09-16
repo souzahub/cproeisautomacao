@@ -10,9 +10,12 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login", response_model=Token)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    login_id = credentials.email.strip()
-    user = db.query(User).filter(User.email.ilike(login_id)).first()
-    if not user and login_id.lower() in ("admin", "master", "admin@cproeis.local"):
+    raw_id = (credentials.email or credentials.username or "").strip()
+    if not raw_id:
+        raise HTTPException(status_code=400, detail="Informe o e-mail ou usuário.")
+    
+    user = db.query(User).filter(User.email.ilike(raw_id)).first()
+    if not user and raw_id.lower() in ("admin", "master", "admin@cproeis.local"):
         user = db.query(User).filter(User.role == "master").first()
 
     if not user or not verify_password(credentials.password, user.hashed_password):

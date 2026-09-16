@@ -38,12 +38,10 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <ProgressBar
-            android:id="@+id/pbLoading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_margin="20dp"
+        <!-- Skeleton Loader -->
+        <include
+            android:id="@+id/skeletonVagas"
+            layout="@layout/layout_skeleton_vagas"
             android:visibility="gone" />
 
         <TextView
