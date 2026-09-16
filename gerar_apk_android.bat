@@ -1,8 +1,18 @@
 @echo off
 setlocal enabledelayedexpansion
 title Gerador de APK Android CPROEIS
+
+set "APP_VER=1.0.4"
+for /f "tokens=2 delims==" %%a in ('findstr "APP_VERSION" "%~dp0frontend\src\version.js" 2^>nul') do (
+    set "RAW_VER=%%a"
+    set "RAW_VER=!RAW_VER:"=!"
+    set "RAW_VER=!RAW_VER:'=!"
+    set "RAW_VER=!RAW_VER:;=!"
+    for /f "tokens=*" %%b in ("!RAW_VER!") do set "APP_VER=%%b"
+)
+
 echo ========================================================
-echo          CPROEIS - GERADOR DE APK ANDROID
+echo       CPROEIS - GERADOR DE APK ANDROID (v!APP_VER!)
 echo ========================================================
 echo.
 
@@ -29,7 +39,7 @@ if not exist "%~dp0frontend\android\local.properties" (
 )
 
 cd /d "%~dp0frontend"
-echo [1/3] Compilando frontend e sincronizando com Android...
+echo [1/3] Compilando frontend (v!APP_VER!) e sincronizando com Android...
 call npm run build:android
 if %errorlevel% neq 0 (
     echo Erro ao compilar frontend.
@@ -50,15 +60,18 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [3/3] Organizando arquivo APK na pasta de saida...
+echo [3/3] Organizando arquivos APK na pasta de saida...
 cd /d "%~dp0"
 if not exist "%~dp0dist_apk" mkdir "%~dp0dist_apk"
+if exist "%~dp0dist_apk\CPROEIS_Automacao_vconst.apk" del /f /q "%~dp0dist_apk\CPROEIS_Automacao_vconst.apk" >nul 2>&1
 copy /y "%~dp0frontend\android\app\build\outputs\apk\debug\app-debug.apk" "%~dp0dist_apk\CPROEIS_Automacao.apk" >nul
+copy /y "%~dp0frontend\android\app\build\outputs\apk\debug\app-debug.apk" "%~dp0dist_apk\CPROEIS_Automacao_v!APP_VER!.apk" >nul
 
 echo.
 echo ========================================================
-echo APK gerado com sucesso em:
-echo %~dp0dist_apk\CPROEIS_Automacao.apk
+echo APK gerado com sucesso:
+echo - %~dp0dist_apk\CPROEIS_Automacao_v!APP_VER!.apk
+echo - %~dp0dist_apk\CPROEIS_Automacao.apk
 echo ========================================================
 echo.
 explorer "%~dp0dist_apk"

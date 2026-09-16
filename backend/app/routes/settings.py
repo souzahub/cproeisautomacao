@@ -1,7 +1,7 @@
 import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from ..config import ENV_PATH
+from ..config import ENV_PATH, BASE_DIR
 from ..database import get_db
 from ..models import User
 from ..schemas import BotSettingsSchema
@@ -51,8 +51,6 @@ def write_env_file(updates: dict):
 
 @router.get("", response_model=BotSettingsSchema)
 def get_settings(current_user: User = Depends(get_current_user)):
-    if current_user.role != "master":
-        raise HTTPException(status_code=403, detail="Acesso restrito ao administrador.")
     env_data = read_env_file()
     return {
         "PROEIS_URL": env_data.get("PROEIS_URL", "https://www.proeis.rj.gov.br/"),
@@ -74,7 +72,8 @@ def get_settings(current_user: User = Depends(get_current_user)):
         "MODO_VISIVEL": env_data.get("MODO_VISIVEL", "false").lower() == "true",
         "MODO_HOMOLOGACAO": env_data.get("MODO_HOMOLOGACAO", "true").lower() == "true",
         "GEMINI_MODEL": env_data.get("GEMINI_MODEL", "gemini-3.7-flash"),
-        "GEMINI_API_KEY": env_data.get("GEMINI_API_KEY", "")
+        "GEMINI_API_KEY": env_data.get("GEMINI_API_KEY", ""),
+        "AI_BASE_URL": env_data.get("AI_BASE_URL", "https://9router.devsouza.online/v1")
     }
 
 @router.put("", response_model=BotSettingsSchema)
@@ -100,7 +99,8 @@ def update_settings(settings_in: BotSettingsSchema, current_user: User = Depends
         "MODO_VISIVEL": "true" if settings_in.MODO_VISIVEL else "false",
         "MODO_HOMOLOGACAO": "true" if settings_in.MODO_HOMOLOGACAO else "false",
         "GEMINI_MODEL": settings_in.GEMINI_MODEL or "gemini-3.7-flash",
-        "GEMINI_API_KEY": settings_in.GEMINI_API_KEY or ""
+        "GEMINI_API_KEY": settings_in.GEMINI_API_KEY or "",
+        "AI_BASE_URL": settings_in.AI_BASE_URL or "https://9router.devsouza.online/v1"
     }
 
     if settings_in.SENHA:
@@ -112,3 +112,29 @@ def update_settings(settings_in: BotSettingsSchema, current_user: User = Depends
         os.environ[k] = v
 
     return get_settings(current_user)
+
+@router.post("/test-ai")
+def test_ai_key(payload: dict, current_user: User = Depends(get_current_user)):
+    api_key = (payload.get("api_key") or "").strip()
+    model = (payload.get("model") or "gemini-3.7-flash").strip()
+    base_url = (payload.get("base_url") or payload.get("ai_base_url") or os.getenv("AI_BASE_URL", "https://9router.devsouza.online/v1")).strip()
+    
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Chave de API não informada.")
+    
+    from bot import resolver_captcha_gemini
+    sample_path = os.path.join(BASE_DIR, "..", "test_captcha.png")
+    if not os.path.exists(sample_path):
+        sample_path = os.path.join(BASE_DIR, "test_captcha.png")
+    
+    if os.path.exists(sample_path):
+        with open(sample_path, "rb") as f:
+            sample_bytes = f.read()
+    else:
+        sample_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfe\xdc\xccY\xe7\x00\x00\x00\x00IEND\xaeB`\x82"
+
+    code = resolver_captcha_gemini(sample_bytes, api_key, model, ai_base_url=base_url)
+    if code:
+        return {"success": True, "message": f"Conexão bem sucedida. Captcha resolvido: {code}", "code": code}
+    
+    return {"success": False, "message": "Não foi possível resolver o captcha. Verifique a chave e o endpoint informado."}

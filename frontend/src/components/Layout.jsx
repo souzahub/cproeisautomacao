@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
+import { App as CapApp } from "@capacitor/app"
 import { Sidebar } from "./Sidebar"
 import { Header } from "./Header"
 import { BottomNav } from "./BottomNav"
+import { PullToRefresh } from "./PullToRefresh"
 import { Dashboard } from "../pages/Dashboard"
 import { Clients } from "../pages/Clients"
 import { Settings } from "../pages/Settings"
@@ -11,16 +13,84 @@ import { Comprovantes } from "../pages/Comprovantes"
 export function Layout({ user, onLogout, theme, onToggleTheme }) {
   const isMaster = user && user.role === "master"
   const [currentTab, setCurrentTab] = useState("dashboard")
+  const [tabHistory, setTabHistory] = useState(["dashboard"])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem("sidebar_collapsed") === "true"
   })
   const [mobileOpen, setMobileOpen] = useState(false)
+  const lastBackPressRef = useRef(0)
+  const [toastMessage, setToastMessage] = useState("")
+
+  function handleSelectTab(tab) {
+    if (tab === currentTab) return
+    setTabHistory((prev) => [...prev, tab])
+    setCurrentTab(tab)
+    if (mobileOpen) setMobileOpen(false)
+  }
 
   useEffect(() => {
     if (!isMaster && (currentTab === "clients" || currentTab === "settings" || currentTab === "users")) {
       setCurrentTab("dashboard")
+      setTabHistory(["dashboard"])
     }
   }, [isMaster, currentTab])
+
+  useEffect(() => {
+    let handlerPromise = null
+    try {
+      handlerPromise = CapApp.addListener("backButton", () => {
+        if (mobileOpen) {
+          setMobileOpen(false)
+          return
+        }
+
+        const openModals = document.querySelectorAll("[data-state='open'], .dialog-overlay, .modal-open")
+        if (openModals.length > 0) {
+          const closeBtn = document.querySelector("[data-state='open'] button[aria-label='Close'], [data-state='open'] .dialog-close")
+          if (closeBtn) {
+            closeBtn.click()
+            return
+          }
+        }
+
+        if (tabHistory.length > 1) {
+          const newHistory = [...tabHistory]
+          newHistory.pop()
+          const prevTab = newHistory[newHistory.length - 1]
+          setTabHistory(newHistory)
+          setCurrentTab(prevTab || "dashboard")
+          return
+        }
+
+        if (currentTab !== "dashboard") {
+          setCurrentTab("dashboard")
+          setTabHistory(["dashboard"])
+          return
+        }
+
+        const now = Date.now()
+        if (now - lastBackPressRef.current < 2000) {
+          CapApp.exitApp()
+        } else {
+          lastBackPressRef.current = now
+          setToastMessage("pressione novamente para sair")
+          setTimeout(() => setToastMessage(""), 2000)
+        }
+      })
+    } catch {}
+
+    return () => {
+      if (handlerPromise && typeof handlerPromise.then === "function") {
+        handlerPromise
+          .then((handle) => {
+            if (handle && typeof handle.remove === "function") {
+              handle.remove()
+            }
+          })
+          .catch(() => {})
+      }
+    }
+  }, [mobileOpen, tabHistory, currentTab])
 
   function toggleSidebar() {
     if (window.innerWidth <= 860) {
@@ -32,6 +102,11 @@ export function Layout({ user, onLogout, theme, onToggleTheme }) {
         return next
       })
     }
+  }
+
+  async function handleGlobalRefresh() {
+    window.dispatchEvent(new CustomEvent("cproeis:refresh-view", { detail: { tab: currentTab } }))
+    await new Promise((r) => setTimeout(r, 600))
   }
 
   const titles = {
@@ -46,9 +121,11 @@ export function Layout({ user, onLogout, theme, onToggleTheme }) {
     <div className="app-wrapper">
       <Sidebar
         currentTab={currentTab}
-        onSelectTab={setCurrentTab}
+        onSelectTab={handleSelectTab}
         user={user}
         onLogout={onLogout}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
         collapsed={sidebarCollapsed}
         onToggleCollapse={toggleSidebar}
         mobileOpen={mobileOpen}
@@ -63,22 +140,31 @@ export function Layout({ user, onLogout, theme, onToggleTheme }) {
           theme={theme}
           onToggleTheme={onToggleTheme}
           onLogout={onLogout}
+          user={user}
         />
 
-        <main className="main-scroll-content">
-          {currentTab === "dashboard" && <Dashboard user={user} onNavigateTab={setCurrentTab} />}
-          {currentTab === "clients" && <Clients />}
-          {currentTab === "settings" && <Settings />}
-          {currentTab === "users" && <Users currentUser={user} />}
-          {currentTab === "comprovantes" && <Comprovantes />}
-        </main>
+        <PullToRefresh onRefresh={handleGlobalRefresh}>
+          <main className="main-scroll-content">
+            {currentTab === "dashboard" && <Dashboard user={user} onNavigateTab={handleSelectTab} />}
+            {currentTab === "clients" && <Clients />}
+            {currentTab === "settings" && <Settings />}
+            {currentTab === "users" && <Users currentUser={user} />}
+            {currentTab === "comprovantes" && <Comprovantes />}
+          </main>
+        </PullToRefresh>
 
         <BottomNav
           currentTab={currentTab}
-          onSelectTab={setCurrentTab}
+          onSelectTab={handleSelectTab}
           user={user}
           onLogout={onLogout}
         />
+
+        {toastMessage && (
+          <div className="app-toast-back">
+            {toastMessage}
+          </div>
+        )}
       </div>
     </div>
   )

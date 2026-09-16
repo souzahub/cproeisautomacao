@@ -6,6 +6,7 @@ import { Button } from "../components/ui/button"
 import { PasswordInput } from "../components/ui/password-input"
 import { InfoTooltip } from "../components/ui/info-tooltip"
 import { DocumentInput } from "../components/ui/masked-text"
+import { APP_VERSION, BUILD_DATE } from "../version"
 
 export function Settings() {
   const [formData, setFormData] = useState({
@@ -24,7 +25,8 @@ export function Settings() {
     MODO_VISIVEL: false,
     MODO_HOMOLOGACAO: true,
     GEMINI_MODEL: "gemini-3.7-flash",
-    GEMINI_API_KEY: ""
+    GEMINI_API_KEY: "",
+    AI_BASE_URL: "https://9router.devsouza.online/v1"
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -55,6 +57,9 @@ export function Settings() {
     }
   }
 
+  const [testingAi, setTestingAi] = useState(false)
+  const [aiTestResult, setAiTestResult] = useState(null)
+
   useEffect(() => {
     function updateQueue() {
       setPendingQueue(getSyncQueue())
@@ -66,6 +71,9 @@ export function Settings() {
       try {
         const data = await settingsApi.get()
         setFormData(data)
+        if (data.GEMINI_API_KEY) localStorage.setItem("GEMINI_API_KEY", data.GEMINI_API_KEY)
+        if (data.GEMINI_MODEL) localStorage.setItem("GEMINI_MODEL", data.GEMINI_MODEL)
+        if (data.AI_BASE_URL) localStorage.setItem("AI_BASE_URL", data.AI_BASE_URL)
       } catch (err) {
         setNotification({ type: "error", text: err.message || "falha ao carregar configurações" })
       } finally {
@@ -124,6 +132,32 @@ export function Settings() {
 
   function handleChange(field, value) {
     setFormData((prev) => ({ ...prev, [field]: value }))
+    if (field === "GEMINI_API_KEY") localStorage.setItem("GEMINI_API_KEY", value)
+    if (field === "GEMINI_MODEL") localStorage.setItem("GEMINI_MODEL", value)
+    if (field === "AI_BASE_URL") localStorage.setItem("AI_BASE_URL", value)
+  }
+
+  async function handleTestAi() {
+    setTestingAi(true)
+    setAiTestResult(null)
+    try {
+      const key = (formData.GEMINI_API_KEY || "").trim()
+      const mod = (formData.GEMINI_MODEL || "gemini-2.5-flash").trim()
+      const baseUrl = (formData.AI_BASE_URL || "").trim()
+      if (!key) {
+        setAiTestResult({ success: false, message: "informe a chave de api antes de testar" })
+        return
+      }
+      localStorage.setItem("GEMINI_API_KEY", key)
+      localStorage.setItem("GEMINI_MODEL", mod)
+      if (baseUrl) localStorage.setItem("AI_BASE_URL", baseUrl)
+      const res = await settingsApi.testAi(key, mod, baseUrl)
+      setAiTestResult(res)
+    } catch (err) {
+      setAiTestResult({ success: false, message: err.message || "falha ao testar conexão com o provedor" })
+    } finally {
+      setTestingAi(false)
+    }
   }
 
   async function handleSubmit(e) {
@@ -133,6 +167,9 @@ export function Settings() {
     try {
       const normalized = (serverUrl || "").trim().replace(/\/+$/, "")
       localStorage.setItem("server_url", normalized)
+      if (formData.GEMINI_API_KEY) localStorage.setItem("GEMINI_API_KEY", formData.GEMINI_API_KEY)
+      if (formData.GEMINI_MODEL) localStorage.setItem("GEMINI_MODEL", formData.GEMINI_MODEL)
+      if (formData.AI_BASE_URL) localStorage.setItem("AI_BASE_URL", formData.AI_BASE_URL)
       const updated = await settingsApi.update(formData)
       setFormData(updated)
       setNotification({ type: "info", text: "configurações atualizadas" })
@@ -473,12 +510,20 @@ export function Settings() {
 
               <div className="grid-cols-3" style={{ marginBottom: "16px" }}>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="meta_vagas">meta de vagas padrão</label>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <label className="form-label" htmlFor="meta_vagas" style={{ marginBottom: 0 }}>meta de vagas padrão</label>
+                    <InfoTooltip
+                      title="meta de vagas padrão"
+                      text="número máximo de vagas que o robô agendará no total. Ele pesquisa as datas do período até atingir esse limite."
+                      example="se a meta for 15 e surgirem 7 datas disponíveis, o robô cadastrará as 7 com sucesso."
+                    />
+                  </div>
                   <input
                     id="meta_vagas"
                     type="number"
                     min="1"
                     className="form-input"
+                    style={{ marginTop: "4px" }}
                     value={formData.META_VAGAS || 1}
                     onChange={(e) => handleChange("META_VAGAS", parseInt(e.target.value) || 1)}
                     disabled={saving}
@@ -498,11 +543,19 @@ export function Settings() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" htmlFor="tentativas">tentativas máximas</label>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <label className="form-label" htmlFor="tentativas" style={{ marginBottom: 0 }}>tentativas máximas</label>
+                    <InfoTooltip
+                      title="tentativas máximas"
+                      text="quantidade de ciclos que o robô executará antes de finalizar a busca."
+                      example="em um período de 14 datas, 30 tentativas dão aproximadamente 2 voltas completas em todos os dias."
+                    />
+                  </div>
                   <input
                     id="tentativas"
                     type="number"
                     className="form-input"
+                    style={{ marginTop: "4px" }}
                     value={formData.TENTATIVAS_MAXIMAS}
                     onChange={(e) => handleChange("TENTATIVAS_MAXIMAS", parseInt(e.target.value) || 1)}
                     disabled={saving}
@@ -510,28 +563,58 @@ export function Settings() {
                 </div>
               </div>
 
-              <div className="grid-cols-2" style={{ marginBottom: "16px" }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="gemini_model">modelo do gemini para captcha</label>
+              <div className="grid-cols-3" style={{ marginBottom: "12px" }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" htmlFor="ai_base_url">endpoint da api / 9router</label>
+                  <input
+                    id="ai_base_url"
+                    className="form-input"
+                    value={formData.AI_BASE_URL || ""}
+                    onChange={(e) => handleChange("AI_BASE_URL", e.target.value)}
+                    placeholder="https://9router.devsouza.online/v1"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" htmlFor="gemini_model">modelo ou combo de ia</label>
                   <input
                     id="gemini_model"
                     className="form-input"
                     value={formData.GEMINI_MODEL}
                     onChange={(e) => handleChange("GEMINI_MODEL", e.target.value)}
+                    placeholder="myCombo, gemini-2.5-flash, etc"
                     disabled={saving}
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="gemini_key">chave de api do gemini</label>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" htmlFor="gemini_key">chave de api da ia</label>
                   <PasswordInput
                     id="gemini_key"
                     value={formData.GEMINI_API_KEY}
                     onChange={(e) => handleChange("GEMINI_API_KEY", e.target.value)}
-                    placeholder="chave opcional para backup do OCR local"
+                    placeholder="chave de api do 9router ou gemini"
                     disabled={saving}
                   />
                 </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestAi}
+                  disabled={testingAi || saving}
+                >
+                  {testingAi ? "testando..." : "testar conexão de ia"}
+                </Button>
+                {aiTestResult && (
+                  <span style={{ fontSize: "12px", color: aiTestResult.success ? "var(--color-success, #16a34a)" : "var(--color-destructive, #dc2626)" }}>
+                    {aiTestResult.message}
+                  </span>
+                )}
               </div>
 
               <div style={{ display: "flex", gap: "24px" }}>
@@ -561,7 +644,20 @@ export function Settings() {
           )}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div className="card" style={{ padding: "16px", marginTop: "16px", background: "var(--bg-surface-elevated, #f8fafc)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>versão do aplicativo</span>
+              <span style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>v{APP_VERSION}</span>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>data da compilação</span>
+              <span style={{ fontSize: "13px", color: "var(--text-primary)" }}>{BUILD_DATE}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }}>
           <Button
             type="submit"
             disabled={saving || loading}

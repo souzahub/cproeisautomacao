@@ -28,6 +28,8 @@ def run_migrations():
                 conn.execute(text("ALTER TABLE client_profiles ADD COLUMN data_fim VARCHAR"))
             if "meta_vagas" not in columns:
                 conn.execute(text("ALTER TABLE client_profiles ADD COLUMN meta_vagas INTEGER DEFAULT 1"))
+            if "preferred_hours" not in columns:
+                conn.execute(text("ALTER TABLE client_profiles ADD COLUMN preferred_hours VARCHAR DEFAULT ''"))
             conn.commit()
 
         if "bot_executions" in inspector.get_table_names():

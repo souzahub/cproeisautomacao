@@ -150,6 +150,7 @@ ipcMain.handle("bot:start", async (_event, { mode, clientData }) => {
     if (clientData.password) env["SENHA"] = clientData.password
     if (clientData.convenio) env["CONVENIO"] = clientData.convenio
     if (clientData.preferred_events) env["EVENTOS_PREFERIDOS"] = clientData.preferred_events
+    if (clientData.preferred_hours) env["HORARIOS_PREFERIDOS"] = clientData.preferred_hours
     if (clientData.only_listed_events !== undefined) env["APENAS_EVENTOS_LISTADOS"] = clientData.only_listed_events ? "true" : "false"
     if (clientData.only_titular !== undefined) env["APENAS_TITULAR"] = clientData.only_titular ? "true" : "false"
     if (clientData.tipo_data) env["TIPO_DATA"] = clientData.tipo_data

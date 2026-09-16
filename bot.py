@@ -37,6 +37,9 @@ def carregar_configuracao():
     eventos_raw = os.getenv("EVENTOS_PREFERIDOS", os.getenv("NOME_EVENTO", ""))
     eventos_lista = [e.strip() for e in re.split(r"[,;]", eventos_raw) if e.strip()]
     
+    horarios_raw = os.getenv("HORARIOS_PREFERIDOS", "")
+    horarios_lista = [h.strip() for h in re.split(r"[,;]", horarios_raw) if h.strip()]
+    
     apenas_listados = os.getenv("APENAS_EVENTOS_LISTADOS", "false").lower() == "true"
     apenas_titular = os.getenv("APENAS_TITULAR", "false").lower() == "true"
     intervalo = int(os.getenv("INTERVALO_SEGUNDOS", "5"))
@@ -45,6 +48,7 @@ def carregar_configuracao():
     modo_homologacao = os.getenv("MODO_HOMOLOGACAO", "false").lower() == "true"
     
     proxy = os.getenv("PROXY_SERVER", os.getenv("HTTP_PROXY", "")).strip()
+    ai_base_url = os.getenv("AI_BASE_URL", "").strip()
     
     return {
         "url": url,
@@ -59,6 +63,7 @@ def carregar_configuracao():
         "dias_inicial": dias_ini,
         "dias_maximo": dias_max,
         "eventos_preferidos": eventos_lista,
+        "horarios_preferidos": horarios_lista,
         "apenas_eventos_listados": apenas_listados,
         "apenas_titular": apenas_titular,
         "intervalo_segundos": intervalo,
@@ -67,54 +72,187 @@ def carregar_configuracao():
         "modo_homologacao": modo_homologacao,
         "gemini_api_key": gemini_key,
         "gemini_model": gemini_model,
+        "ai_base_url": ai_base_url,
         "proxy": proxy
     }
 
-def resolver_captcha_gemini(img_bytes, api_key, modelo_preferido):
+def resolver_captcha_gemini(img_bytes, api_key, modelo_preferido, ai_base_url=""):
     if not api_key:
         return ""
     b64_img = base64.b64encode(img_bytes).decode("utf-8")
-    modelos = []
-    if modelo_preferido:
-        modelos.append(modelo_preferido)
-    modelos += ["gemini-flash-lite-latest", "gemini-2.5-flash-lite", "gemini-3.7-flash"]
-    vistos = set()
-    modelos_ordenados = []
-    for m in modelos:
-        if m and m not in vistos:
-            vistos.add(m)
-            modelos_ordenados.append(m)
+    clean_key = api_key.strip()
+    base_url = (ai_base_url or os.getenv("AI_BASE_URL", "")).strip().rstrip("/")
+
+    def extrair_codigo(texto):
+        if not texto:
+            return ""
+        limpo = re.sub(r"[^a-zA-Z0-9]", "", texto).upper().strip()
+        if len(limpo) == 6:
+            return limpo
+        m = re.search(r"[A-Za-z0-9]{6}", texto)
+        return m.group(0).upper() if m else (limpo[:6] if len(limpo) >= 6 else "")
+
+    if base_url:
+        try:
+            target_url = base_url if base_url.endswith("/chat/completions") else f"{base_url}/chat/completions"
+            chosen_model = (modelo_preferido or "gpt1").strip()
+            payload = {
+                "model": chosen_model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Retorne estritamente apenas os 6 caracteres alfanumericos do captcha desta imagem, em maiusculo, sem espacos e sem pontuacao."},
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64_img}"}}
+                        ]
+                    }
+                ],
+                "temperature": 0.0,
+                "stream": False
+            }
+            req_headers = {"Content-Type": "application/json"}
+            if clean_key:
+                req_headers["Authorization"] = f"Bearer {clean_key}"
+            req = urllib.request.Request(
+                target_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers=req_headers
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                resp_raw = resp.read().decode("utf-8")
+                texto = ""
+                try:
+                    data = json.loads(resp_raw)
+                    texto = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                except Exception:
+                    for line in resp_raw.splitlines():
+                        line = line.strip()
+                        if line.startswith("data:"):
+                            chunk_str = line[5:].strip()
+                            if chunk_str and chunk_str != "[DONE]":
+                                try:
+                                    chunk_data = json.loads(chunk_str)
+                                    delta = chunk_data.get("choices", [{}])[0].get("delta", {})
+                                    content_part = delta.get("content", "")
+                                    if content_part:
+                                        texto += content_part
+                                except Exception:
+                                    pass
+                codigo = extrair_codigo(texto)
+                if len(codigo) == 6:
+                    return codigo
+        except Exception:
+            pass
+
+    if clean_key.startswith("sk-or-"):
+        try:
+            chosen_model = modelo_preferido.strip() if (modelo_preferido and "/" in modelo_preferido) else "google/gemini-2.5-flash"
+            payload = {
+                "model": chosen_model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Retorne estritamente apenas os 6 caracteres alfanumericos do captcha desta imagem, em maiusculo, sem espacos e sem pontuacao."},
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64_img}"}}
+                        ]
+                    }
+                ],
+                "temperature": 0.0
+            }
+            req = urllib.request.Request(
+                "https://openrouter.ai/api/v1/chat/completions",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {clean_key}",
+                    "Content-Type": "application/json"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                texto = data["choices"][0]["message"]["content"]
+                codigo = extrair_codigo(texto)
+                if len(codigo) == 6:
+                    return codigo
+        except Exception:
+            pass
+        return ""
+
+    if clean_key.startswith("sk-"):
+        try:
+            chosen_model = modelo_preferido.strip() if (modelo_preferido and "/" not in modelo_preferido) else "gpt-4o-mini"
+            payload = {
+                "model": chosen_model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Retorne estritamente apenas os 6 caracteres alfanumericos do captcha desta imagem, em maiusculo, sem espacos e sem pontuacao."},
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64_img}"}}
+                        ]
+                    }
+                ],
+                "temperature": 0.0
+            }
+            req = urllib.request.Request(
+                "https://api.openai.com/v1/chat/completions",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {clean_key}",
+                    "Content-Type": "application/json"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                texto = data["choices"][0]["message"]["content"]
+                codigo = extrair_codigo(texto)
+                if len(codigo) == 6:
+                    return codigo
+        except Exception:
+            pass
+        return ""
+
+    candidate_models = []
+    if modelo_preferido and modelo_preferido.strip():
+        raw_m = modelo_preferido.strip().replace("models/", "")
+        candidate_models.append(raw_m)
+
+    for m in ["gemini-3.7-flash", "gemini-2.5-flash", "gemini-2.0-flash"]:
+        if m not in candidate_models:
+            candidate_models.append(m)
 
     payload = {
         "contents": [{
             "parts": [
                 {"text": "Retorne estritamente apenas os 6 caracteres alfanumericos do captcha desta imagem, em maiusculo, sem espacos, sem pontuacao e sem qualquer outra palavra."},
-                {"inline_data": {"mime_type": "image/png", "data": b64_img}}
+                {"inlineData": {"mimeType": "image/png", "data": b64_img}}
             ]
         }],
-        "generationConfig": {"temperature": 0.0}
+        "generationConfig": {
+            "temperature": 0.0,
+            "thinkingConfig": {"thinkingBudget": 0}
+        }
     }
 
-    for modelo in modelos_ordenados:
+    for target_model in candidate_models:
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent"
             req = urllib.request.Request(
                 url,
                 data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"}
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": clean_key
+                }
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=35) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 texto = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                limpo = re.sub(r"[^a-zA-Z0-9]", "", texto).upper()
-                if len(limpo) == 6:
-                    return limpo
-        except Exception as e:
-            # 429 = cota esgotada; espera mais antes de tentar de novo
-            if "429" in str(e) or "quota" in str(e).lower():
-                time.sleep(4)
-            else:
-                time.sleep(0.8)
+                codigo = extrair_codigo(texto)
+                if len(codigo) == 6:
+                    return codigo
+        except Exception:
+            continue
 
     return ""
 
@@ -205,19 +343,31 @@ def extrair_captcha_pagina(page):
             
     return None
 
-def obter_captcha(page, ocr, cfg):
+def garantir_formulario_login(page, tipo_doc="CPF"):
+    try:
+        if not page.is_visible("#txtSenha"):
+            page.wait_for_selector("#ddlTipoAcesso", timeout=15000)
+            page.select_option("#ddlTipoAcesso", tipo_doc)
+            page.wait_for_selector("#txtSenha", state="visible", timeout=15000)
+            time.sleep(1)
+        return True
+    except Exception:
+        return False
+
+def obter_captcha(page, ocr, cfg, tipo_doc="CPF"):
     def regenerar_imagem():
         try:
-            link_nova_img = page.query_selector("a:has-text('Gerar Nova Imagem')")
+            link_nova_img = page.query_selector("#lnkNewCaptcha, a:has-text('Gerar Nova Imagem')")
             if link_nova_img:
                 link_nova_img.click()
-                time.sleep(1)
+                time.sleep(1.5)
                 page.wait_for_load_state("networkidle")
                 return True
         except Exception:
             pass
         return False
 
+    garantir_formulario_login(page, tipo_doc)
     captcha_bytes = extrair_captcha_pagina(page)
     if not captcha_bytes:
         for _ in range(2):
@@ -263,39 +413,31 @@ def obter_captcha(page, ocr, cfg):
 
 def realizar_login(page, ocr, cfg):
     print("Iniciando acesso ao portal CPROEIS...")
-    url = cfg.get("url", "https://proeis.rj.gov.br/").strip()
+    url = cfg.get("url", "https://www.proeis.rj.gov.br/").strip()
     if not url:
-        url = "https://proeis.rj.gov.br/"
+        url = "https://www.proeis.rj.gov.br/"
     
+    if "proeis.rj.gov.br" in url and "www.proeis.rj.gov.br" not in url:
+        url = url.replace("proeis.rj.gov.br", "www.proeis.rj.gov.br")
+    if not url.startswith("http"):
+        url = f"https://{url}"
+
     try:
-        page.goto(url, wait_until="commit", timeout=45000)
+        page.goto(url, wait_until="networkidle", timeout=45000)
     except Exception as e:
         print(f"Tentando conexao direta com login: {str(e)}")
         try:
-            page.goto("https://proeis.rj.gov.br/FrmLoginVoluntario.aspx", wait_until="commit", timeout=45000)
+            page.goto("https://www.proeis.rj.gov.br/", wait_until="commit", timeout=45000)
         except Exception:
             pass
     
     tipo_doc = cfg.get("tipo_documento", "CPF")
-    try:
-        page.wait_for_selector("#ddlTipoAcesso", timeout=25000)
-        page.select_option("#ddlTipoAcesso", tipo_doc)
-    except Exception:
-        pass
-
-    try:
-        page.wait_for_selector("#txtLogin", state="visible", timeout=25000)
-    except Exception:
-        pass
-    time.sleep(1)
+    garantir_formulario_login(page, tipo_doc)
 
     max_login = max(1, int(cfg.get("tentativas_maximas", 10)))
     for tentativa in range(1, max_login + 1):
         print(f"\nTentativa de login {tentativa}/{max_login}...")
-        try:
-            page.wait_for_load_state("domcontentloaded", timeout=15000)
-        except Exception:
-            pass
+        garantir_formulario_login(page, tipo_doc)
         time.sleep(1)
 
         try:
@@ -303,31 +445,32 @@ def realizar_login(page, ocr, cfg):
             page.fill("#txtSenha", cfg.get("senha", ""))
         except Exception as e:
             print(f"Erro ao preencher credenciais: {str(e)}")
-            time.sleep(3)
+            time.sleep(2)
             continue
 
         try:
-            texto_captcha = obter_captcha(page, ocr, cfg)
+            texto_captcha = obter_captcha(page, ocr, cfg, tipo_doc)
         except Exception as e:
             txt_erro = str(e)
             if "Execution context was destroyed" in txt_erro or "navigation" in txt_erro:
                 print("Navegacao em andamento, aguardando estabilizar...")
-                time.sleep(4)
+                time.sleep(3)
                 continue
             print(f"Erro ao obter captcha: {txt_erro}")
-            time.sleep(3)
+            time.sleep(2)
             continue
         print(f"Captcha do login decodificado: {texto_captcha}")
 
         if len(texto_captcha) != 6:
-            print("Captcha invalido, recarregando para nova imagem...")
+            print("Captcha invalido, gerando nova imagem...")
             try:
-                page.keyboard.press("F5")
-                page.wait_for_load_state("load", timeout=30000)
-                page.wait_for_selector("#txtLogin", state="visible", timeout=25000)
+                link = page.query_selector("#lnkNewCaptcha, a:has-text('Gerar Nova Imagem')")
+                if link:
+                    link.click()
+                    page.wait_for_load_state("networkidle")
+                    time.sleep(1.5)
             except Exception:
                 pass
-            time.sleep(2)
             continue
 
         try:
@@ -335,17 +478,17 @@ def realizar_login(page, ocr, cfg):
             page.click("#btnEntrar")
         except Exception as e:
             print(f"Erro ao enviar login: {str(e)}")
-            time.sleep(3)
+            time.sleep(2)
             continue
 
         try:
-            page.wait_for_load_state("load", timeout=30000)
+            page.wait_for_load_state("load", timeout=25000)
         except Exception:
             try:
                 page.wait_for_load_state("domcontentloaded", timeout=15000)
             except Exception:
                 pass
-        time.sleep(3)
+        time.sleep(2)
 
         url_atual = page.url
         if "FrmMenuVoluntario.aspx" in url_atual or "Menu" in url_atual:
@@ -372,7 +515,7 @@ def navegar_para_inscricao(page):
     if botao_escala:
         botao_escala.click()
     else:
-        page.goto("https://proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="networkidle")
+        page.goto("https://www.proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="networkidle")
     
     page.wait_for_load_state("networkidle")
     time.sleep(1)
@@ -381,7 +524,7 @@ def navegar_para_inscricao(page):
     if botao_nova:
         botao_nova.click()
     else:
-        page.goto("https://proeis.rj.gov.br/FrmEscalaAssociar.aspx", wait_until="networkidle")
+        page.goto("https://www.proeis.rj.gov.br/FrmEscalaAssociar.aspx", wait_until="networkidle")
         
     page.wait_for_load_state("networkidle")
     time.sleep(1)
@@ -395,7 +538,7 @@ def exibir_vagas_confirmadas(page, cfg):
         btn_vol.click()
         page.wait_for_load_state("networkidle")
     elif "FrmMenuVoluntario.aspx" not in page.url:
-        page.goto("https://proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="networkidle")
+        page.goto("https://www.proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="networkidle")
     time.sleep(2)
 
     chk_mes = page.query_selector("#chkEveMes")
@@ -463,6 +606,7 @@ def gerar_datas_alvo(cfg):
 def buscar_e_candidatar(page, ocr, cfg):
     convenio_alvo = cfg.get("convenio", "")
     eventos_pref = [e.upper() for e in cfg.get("eventos_preferidos", [])]
+    horarios_pref = [h.upper() for h in cfg.get("horarios_preferidos", [])]
     apenas_listados = cfg.get("apenas_eventos_listados", False)
     apenas_titular = cfg.get("apenas_titular", False)
     intervalo = cfg.get("intervalo_segundos", 5)
@@ -475,6 +619,8 @@ def buscar_e_candidatar(page, ocr, cfg):
 
     if eventos_pref:
         print(f"Eventos prioritarios: {', '.join(eventos_pref)}")
+    if horarios_pref:
+        print(f"Horarios/Turnos prioritarios: {', '.join(horarios_pref)}")
         
     print(f"Meta de vagas configurada: {meta_vagas} vaga(s)")
     if len(datas_alvo) > 1:
@@ -490,49 +636,78 @@ def buscar_e_candidatar(page, ocr, cfg):
 
         print(f"\n--- Ciclo {ciclo}/{max_tentativas} | Data: {data_br} ({data_iso}) | Progresso: {vagas_agendadas}/{meta_vagas} vaga(s) ---")
         
-        select_conv = page.query_selector("#ddlConvenios, select[name*='Convenio']")
-        if select_conv and convenio_alvo:
-            opcoes = select_conv.query_selector_all("option")
-            valor_selecionar = None
-            for op in opcoes:
-                texto = op.inner_text().strip()
-                if convenio_alvo.lower() in texto.lower():
-                    valor_selecionar = op.get_attribute("value")
-                    break
-            if valor_selecionar:
-                select_conv.select_option(valor_selecionar)
-                page.wait_for_load_state("networkidle")
-                time.sleep(1)
+        try:
+            select_conv = page.query_selector("#ddlConvenios, select[name*='Convenio']")
+            if select_conv and convenio_alvo:
+                opcoes = select_conv.query_selector_all("option")
+                valor_selecionar = None
+                for op in opcoes:
+                    texto = op.inner_text().strip()
+                    if convenio_alvo.lower() in texto.lower():
+                        valor_selecionar = op.get_attribute("value")
+                        break
+                if valor_selecionar:
+                    select_conv.select_option(valor_selecionar)
+                    page.wait_for_load_state("networkidle")
+                    time.sleep(1)
 
-        select_data = page.query_selector("#ddlDataEvento, select[name*='DataEvento'], select[id*='Data']")
-        if select_data:
-            opcoes_data = select_data.query_selector_all("option")
-            valor_data = None
-            for op in opcoes_data:
-                texto_op = op.inner_text().strip()
-                if data_iso in texto_op or data_br in texto_op:
-                    valor_data = op.get_attribute("value")
-                    break
-            if valor_data:
-                select_data.select_option(valor_data)
-                page.wait_for_load_state("networkidle")
-                time.sleep(1)
-            else:
-                print(f"Data {data_br} ainda nao disponivel no menu do portal.")
-                time.sleep(intervalo)
-                continue
+            select_data = page.query_selector("#ddlDataEvento, select[name*='DataEvento'], select[id*='Data']")
+            if select_data:
+                opcoes_data = select_data.query_selector_all("option")
+                valor_data = None
+                for op in opcoes_data:
+                    texto_op = op.inner_text().strip()
+                    if data_iso in texto_op or data_br in texto_op:
+                        valor_data = op.get_attribute("value")
+                        break
+                if valor_data:
+                    select_data.select_option(valor_data)
+                    page.wait_for_load_state("networkidle")
+                    time.sleep(1)
+                else:
+                    print(f"Data {data_br} ainda nao disponivel no menu do portal.")
+                    time.sleep(intervalo)
+                    continue
 
-        input_captcha = page.query_selector("#TextCaptcha, input[name*='Captcha']")
-        if input_captcha:
-            texto_c = obter_captcha(page, ocr, cfg)
-            print(f"Captcha da busca decodificado: {texto_c}")
-            input_captcha.fill(texto_c)
+            # Verificacao e preenchimento seguro de Captcha
+            captcha_visivel = False
+            try:
+                captcha_visivel = page.locator("#TextCaptcha, input[name*='Captcha']").first.is_visible()
+            except Exception:
+                captcha_visivel = bool(page.query_selector("#TextCaptcha, input[name*='Captcha']"))
 
-        btn_filtrar = page.query_selector("#btnConsultar, input[value*='Filtrar'], button:has-text('Filtrar')")
-        if btn_filtrar:
-            btn_filtrar.click()
+            if captcha_visivel:
+                texto_c = obter_captcha(page, ocr, cfg)
+                print(f"Captcha da busca decodificado: {texto_c}")
+                if texto_c:
+                    try:
+                        page.locator("#TextCaptcha, input[name*='Captcha']").first.fill(texto_c)
+                    except Exception:
+                        try:
+                            page.fill("#TextCaptcha", texto_c)
+                        except Exception:
+                            el_c = page.query_selector("#TextCaptcha, input[name*='Captcha']")
+                            if el_c:
+                                el_c.fill(texto_c)
+
+            # Clique seguro no botao de filtrar/consultar
+            try:
+                page.locator("#btnConsultar, input[value*='Filtrar'], button:has-text('Filtrar'), input[value*='Consultar']").first.click()
+            except Exception:
+                btn_filtrar = page.query_selector("#btnConsultar, input[value*='Filtrar'], button:has-text('Filtrar'), input[value*='Consultar']")
+                if btn_filtrar:
+                    btn_filtrar.click()
+
             page.wait_for_load_state("networkidle")
             time.sleep(2)
+        except Exception as e_busca:
+            print(f"Aviso no ciclo {ciclo} ({data_br}): {str(e_busca)}. Reestabilizando pagina...")
+            try:
+                navegar_para_inscricao(page)
+            except Exception:
+                pass
+            time.sleep(intervalo)
+            continue
 
         linhas_tabela = page.query_selector_all("table tr")
         vagas_encontradas = []
@@ -550,18 +725,53 @@ def buscar_e_candidatar(page, ocr, cfg):
 
                 is_titular = "RESERVA" not in disp_coluna
                 
+                # Checagem de Evento
                 match_index = -1
-                for idx, pref in enumerate(eventos_pref):
-                    if pref in nome_evento_linha:
-                        match_index = idx
-                        break
+                if eventos_pref:
+                    for idx, pref in enumerate(eventos_pref):
+                        if pref in nome_evento_linha or pref in texto_linha.upper():
+                            match_index = idx
+                            break
+                    if apenas_listados and match_index == -1:
+                        continue
 
-                if apenas_listados and match_index == -1:
-                    continue
+                # Checagem de Horario / Turno (07 as 19, 19 as 07, etc.)
+                match_horario = False
+                if horarios_pref:
+                    texto_linha_norm = texto_linha.upper().replace("À", "A").replace(":", "")
+                    nome_evento_norm = nome_evento_linha.replace("À", "A").replace(":", "")
+                    for hp in horarios_pref:
+                        hp_clean = hp.strip().upper()
+                        hp_norm = hp_clean.replace("À", "A").replace(":", "")
+                        if hp_clean in texto_linha.upper() or hp_clean in nome_evento_linha or hp_norm in texto_linha_norm or hp_norm in nome_evento_norm:
+                            match_horario = True
+                            break
+                        # Casos especiais de 07 as 19 e 19 as 07
+                        if "07" in hp_clean and "19" in hp_clean:
+                            if hp_clean.startswith("07") or hp_clean.startswith("7"):
+                                if ("07" in texto_linha_norm and "19" in texto_linha_norm) or "0700" in texto_linha_norm or "07H" in texto_linha_norm or "07:00" in texto_linha.upper():
+                                    match_horario = True
+                                    break
+                            elif hp_clean.startswith("19"):
+                                if ("19" in texto_linha_norm and ("07" in texto_linha_norm or "7" in texto_linha_norm)) or "1900" in texto_linha_norm or "19H" in texto_linha_norm or "19:00" in texto_linha.upper():
+                                    match_horario = True
+                                    break
+                        elif "07" in hp_clean or "7" in hp_clean:
+                            if "07" in texto_linha.upper() or "7H" in texto_linha.upper() or "07:00" in texto_linha.upper():
+                                match_horario = True
+                                break
+                        elif "19" in hp_clean:
+                            if "19" in texto_linha.upper() or "19:00" in texto_linha.upper() or "19H" in texto_linha.upper():
+                                match_horario = True
+                                break
+                    if apenas_listados and not match_horario:
+                        continue
 
                 pontuacao = 0
                 if match_index != -1:
                     pontuacao += 1000 - (match_index * 50)
+                if match_horario:
+                    pontuacao += 500
                 
                 if is_titular:
                     pontuacao += 200
@@ -628,7 +838,6 @@ def main():
     
     if not cfg.get("documento") or not cfg.get("senha"):
         print("Preencha as variaveis CPF e SENHA no arquivo .env antes de executar.")
-        input("\nPressione ENTER para encerrar...")
         return
 
     ocr = ddddocr.DdddOcr(show_ad=False)

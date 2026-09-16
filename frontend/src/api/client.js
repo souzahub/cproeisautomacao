@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core"
 import {
   getLocalCache,
   setLocalCache,
@@ -18,16 +19,25 @@ export function getBaseUrl() {
     if (custom && custom.trim()) {
       return custom.trim().replace(/\/+$/, "")
     }
-    // No navegador (web / localhost), usar caminho relativo para chamar o backend local/servidor atual
-    if (window.location && window.location.origin && window.location.origin.startsWith("http")) {
-      return ""
+
+    const isNative = Capacitor.isNativePlatform() || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+    if (!isNative) {
+      if (window.location && window.location.origin && window.location.origin.startsWith("http")) {
+        if (!window.location.port || window.location.port === "5173" || window.location.port === "3000") {
+          const envUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL)) || ""
+          if (envUrl && envUrl.trim()) return envUrl.trim().replace(/\/+$/, "")
+          return "http://127.0.0.1:8000"
+        }
+        return ""
+      }
     }
   }
+
   const envUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL)) || ""
   if (envUrl && envUrl.trim()) {
     return envUrl.trim().replace(/\/+$/, "")
   }
-  return "http://127.0.0.1:8000"
+  return "https://cprsautomacao.devsouza.online"
 }
 
 function getToken() {
@@ -55,7 +65,7 @@ export async function apiRequest(endpoint, options = {}) {
     localStorage.removeItem("auth_token")
     localStorage.removeItem("auth_user")
     if (endpoint.includes("/auth/login")) {
-      let errorMsg = "Email ou senha incorretos."
+      let errorMsg = "email ou senha incorretos."
       try {
         const errData = await response.json()
         if (errData && errData.detail) {
@@ -64,18 +74,30 @@ export async function apiRequest(endpoint, options = {}) {
       } catch {}
       throw new Error(errorMsg)
     }
-    throw new Error("Sessao expirada.")
+    throw new Error("sessão expirada.")
   }
 
+  const contentType = response.headers.get("content-type") || ""
   if (!response.ok) {
-    let errorDetail = "Falha na requisicao."
-    try {
-      const errData = await response.json()
-      if (errData && errData.detail) {
-        errorDetail = errData.detail
-      }
-    } catch {}
+    let errorDetail = `erro no servidor (${response.status})`
+    if (contentType.includes("application/json")) {
+      try {
+        const errData = await response.json()
+        if (errData && errData.detail) {
+          errorDetail = errData.detail
+        }
+      } catch {}
+    }
     throw new Error(errorDetail)
+  }
+
+  if (!contentType.includes("application/json")) {
+    const text = await response.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      throw new Error("resposta em formato inesperado do servidor")
+    }
   }
 
   return response.json()
@@ -338,6 +360,12 @@ export const settingsApi = {
       })
       return { success: true }
     }
+  },
+  testAi: async (apiKey, model, baseUrl = "") => {
+    return apiRequest("/api/settings/test-ai", {
+      method: "POST",
+      body: JSON.stringify({ api_key: apiKey, model, base_url: baseUrl })
+    })
   }
 }
 
@@ -355,6 +383,7 @@ export const botApi = {
         if (settings) {
           if (settings.GEMINI_API_KEY) mergedData.gemini_api_key = settings.GEMINI_API_KEY
           if (settings.GEMINI_MODEL) mergedData.gemini_model = settings.GEMINI_MODEL
+          if (settings.AI_BASE_URL) mergedData.ai_base_url = settings.AI_BASE_URL
           if (settings.PROEIS_URL) mergedData.proeis_url = settings.PROEIS_URL
           if (!mergedData.password && settings.SENHA) mergedData.password = settings.SENHA
           if (!mergedData.document && settings.CPF) mergedData.document = settings.CPF
@@ -376,6 +405,7 @@ export const botApi = {
         if (settings) {
           if (settings.GEMINI_API_KEY) mergedData.gemini_api_key = settings.GEMINI_API_KEY
           if (settings.GEMINI_MODEL) mergedData.gemini_model = settings.GEMINI_MODEL
+          if (settings.AI_BASE_URL) mergedData.ai_base_url = settings.AI_BASE_URL
           if (settings.PROEIS_URL) mergedData.proeis_url = settings.PROEIS_URL
           if (!mergedData.password && settings.SENHA) mergedData.password = settings.SENHA
           if (!mergedData.document && settings.CPF) mergedData.document = settings.CPF
@@ -493,6 +523,12 @@ export const botApi = {
     const cached = getLocalCache("cproeis_cache_history", [])
     setLocalCache("cproeis_cache_history", cached.filter(h => h.id !== id))
     return { success: true }
+  },
+  solveCaptcha: async (imageB64) => {
+    return apiRequest("/api/bot/solve-captcha", {
+      method: "POST",
+      body: JSON.stringify({ image: imageB64 })
+    })
   }
 }
 
@@ -521,5 +557,18 @@ export const comprovantesApi = {
     const combined = Array.from(map.values())
     combined.sort((a, b) => (a.modified_at < b.modified_at ? 1 : -1))
     return combined
+  },
+  getVagasReport: async (params = {}) => {
+    try {
+      const query = new URLSearchParams()
+      if (params.client_name) query.append("client_name", params.client_name)
+      if (params.limit) query.append("limit", params.limit)
+      const qs = query.toString() ? `?${query.toString()}` : ""
+      const data = await apiRequest(`/api/comprovantes/vagas-report${qs}`)
+      setLocalCache("cproeis_cache_vagas_report", data)
+      return data
+    } catch {
+      return getLocalCache("cproeis_cache_vagas_report", [])
+    }
   }
 }

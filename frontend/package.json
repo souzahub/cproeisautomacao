@@ -1,7 +1,7 @@
 {
   "name": "cproeis-automacao",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.2.0",
   "main": "electron/main.js",
   "author": "CPROEIS",
   "description": "Sistema de automação e agendamento CPROEIS",
@@ -16,10 +16,12 @@
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

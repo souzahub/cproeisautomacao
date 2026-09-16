@@ -76,6 +76,10 @@ def montar_config_cliente(cliente, modo="homologacao"):
     
     eventos_str = cliente.get("preferred_events") or ""
     cfg["eventos_preferidos"] = [e.strip() for e in eventos_str.replace(";", ",").split(",") if e.strip()]
+    
+    horarios_str = cliente.get("preferred_hours") or ""
+    cfg["horarios_preferidos"] = [h.strip() for h in horarios_str.replace(";", ",").split(",") if h.strip()]
+    
     cfg["apenas_eventos_listados"] = bool(cliente.get("only_listed_events", False))
     cfg["apenas_titular"] = bool(cliente.get("only_titular", False))
     cfg["intervalo_segundos"] = cliente.get("interval_seconds") or 6

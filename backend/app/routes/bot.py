@@ -89,6 +89,42 @@ def clear_bot_logs(current_user: User = Depends(get_current_user)):
     bot_runner.clear_logs()
     return {"message": "Logs limpos com sucesso."}
 
+@router.post("/solve-captcha")
+def solve_captcha_api(payload: dict, current_user: User = Depends(get_current_user)):
+    import base64
+    import os
+    b64_image = (payload.get("image") or "").strip()
+    if not b64_image:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Imagem não informada.")
+
+    clean_b64 = b64_image.split(",")[-1].strip()
+    try:
+        img_bytes = base64.b64decode(clean_b64)
+    except Exception:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Base64 inválido.")
+
+    from bot import resolver_captcha_gemini, resolver_captcha_local
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+
+    if api_key:
+        code = resolver_captcha_gemini(img_bytes, api_key, model)
+        if len(code) == 6:
+            return {"success": True, "code": code, "provider": "ai_server"}
+
+    try:
+        import ddddocr
+        ocr = ddddocr.DdddOcr(show_ad=False)
+        code = resolver_captcha_local(img_bytes, ocr)
+        if len(code) == 6:
+            return {"success": True, "code": code, "provider": "ocr_server"}
+    except Exception:
+        pass
+
+    return {"success": False, "code": "", "message": "Não foi possível resolver o captcha no servidor."}
+
 @router.get("/history", response_model=List[BotExecutionResponse])
 def get_execution_history(
     limit: int = Query(100, ge=1, le=500),

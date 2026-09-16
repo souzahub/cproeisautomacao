@@ -49,6 +49,7 @@ class ClientProfileCreate(BaseModel):
     password: str
     convenio: Optional[str] = "HCPM - RAS"
     preferred_events: Optional[str] = ""
+    preferred_hours: Optional[str] = ""
     only_listed_events: Optional[bool] = False
     only_titular: Optional[bool] = False
     tipo_data: Optional[str] = "dias_frente"
@@ -71,6 +72,7 @@ class ClientProfileUpdate(BaseModel):
     password: Optional[str] = None
     convenio: Optional[str] = None
     preferred_events: Optional[str] = None
+    preferred_hours: Optional[str] = None
     only_listed_events: Optional[bool] = None
     only_titular: Optional[bool] = None
     tipo_data: Optional[str] = None
@@ -93,6 +95,7 @@ class ClientProfileResponse(BaseModel):
     password: str
     convenio: str
     preferred_events: str
+    preferred_hours: Optional[str] = ""
     only_listed_events: bool
     only_titular: bool
     tipo_data: str
@@ -156,6 +159,7 @@ class BotSettingsSchema(BaseModel):
     MODO_HOMOLOGACAO: Optional[bool] = True
     GEMINI_MODEL: Optional[str] = "gemini-3.7-flash"
     GEMINI_API_KEY: Optional[str] = ""
+    AI_BASE_URL: Optional[str] = "https://9router.devsouza.online/v1"
 
 class ComprovanteFile(BaseModel):
     name: str

@@ -85,7 +85,6 @@ export function DialogContent({ children, className = "", style = {} }) {
 
     document.addEventListener("keydown", handleKeyDown)
 
-    // Focar no primeiro input quando o modal abre apenas se não houver foco ativo dentro
     const timer = setTimeout(() => {
       if (contentRef.current) {
         if (contentRef.current.contains(document.activeElement) && document.activeElement !== contentRef.current) {

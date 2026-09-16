@@ -1,64 +1,14 @@
-import React, { useState, useEffect } from "react"
-import { syncApi } from "../api/client"
-import { getSyncQueue } from "../api/sync"
+import React from "react"
 
-export function Header({ title, onToggleSidebar, sidebarCollapsed, theme, onToggleTheme, onLogout }) {
-  const [serverOnline, setServerOnline] = useState(true)
-  const [syncing, setSyncing] = useState(false)
-  const [pendingCount, setPendingCount] = useState(0)
-  const [syncMsg, setSyncMsg] = useState(null)
-
-  function updateQueueCount() {
-    const queue = getSyncQueue()
-    setPendingCount(queue.length)
-  }
-
-  useEffect(() => {
-    async function ping() {
-      const isOnline = await syncApi.checkOnline()
-      setServerOnline(isOnline)
-      updateQueueCount()
-    }
-    ping()
-    const interval = setInterval(ping, 10000)
-
-    function handleQueueUpdated() {
-      updateQueueCount()
-    }
-    window.addEventListener("cproeis:sync-queue-updated", handleQueueUpdated)
-
-    return () => {
-      clearInterval(interval)
-      window.removeEventListener("cproeis:sync-queue-updated", handleQueueUpdated)
-    }
-  }, [])
-
-  async function handleSync() {
-    if (syncing) return
-    setSyncing(true)
-    setSyncMsg(null)
-    try {
-      const result = await syncApi.sync()
-      setServerOnline(true)
-      updateQueueCount()
-      setSyncMsg(`${result.syncedCount} itens sincronizados`)
-      setTimeout(() => setSyncMsg(null), 3000)
-    } catch (err) {
-      setSyncMsg(err.message || "falha na sincronização")
-      setTimeout(() => setSyncMsg(null), 3000)
-    } finally {
-      setSyncing(false)
-    }
-  }
-
+export function Header({ title, onToggleSidebar, sidebarCollapsed }) {
   return (
     <header className="top-navbar">
       <div className="top-navbar-left">
         <button
           className="sidebar-toggle-btn"
           onClick={onToggleSidebar}
-          title={sidebarCollapsed ? "expandir menu" : "recolher menu"}
-          aria-label="alternar menu lateral"
+          title={sidebarCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+          aria-label="Alternar menu lateral"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="12" x2="21" y2="12" />
@@ -67,45 +17,6 @@ export function Header({ title, onToggleSidebar, sidebarCollapsed, theme, onTogg
           </svg>
         </button>
         <h1 className="top-page-heading">{title}</h1>
-      </div>
-
-      <div className="top-navbar-actions">
-        <span className={`badge-pill ${serverOnline ? "badge-success" : "badge-homologacao"}`} style={{ fontSize: "11px" }}>
-          {serverOnline ? "nuvem conectada" : "modo offline"}
-        </span>
-
-        <button
-          type="button"
-          className="btn btn-secondary header-sync-btn"
-          style={{ padding: "5px 10px", fontSize: "11px", height: "auto" }}
-          onClick={handleSync}
-          disabled={syncing}
-          title="sincronizar dados com a nuvem"
-        >
-          {syncing ? "sincronizando..." : pendingCount > 0 ? `sincronizar (${pendingCount})` : "sincronizar"}
-        </button>
-
-        {syncMsg && (
-          <span className="header-sync-feedback" style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-            {syncMsg}
-          </span>
-        )}
-
-        <button
-          className="theme-pill-btn"
-          onClick={onToggleTheme}
-          aria-label="alternar tema"
-        >
-          {theme === "light" ? "tema escuro" : "tema claro"}
-        </button>
-
-        <button
-          className="logout-pill-btn header-logout-desktop"
-          onClick={onLogout}
-          title="encerrar sessão"
-        >
-          sair
-        </button>
       </div>
     </header>
   )

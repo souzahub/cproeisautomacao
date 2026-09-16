@@ -25,3 +25,5 @@ teste_comprovante.pdf
 
 dist_instalador/
 frontend/dist_instalador/
+scratch_*.py
+test_captcha.png
