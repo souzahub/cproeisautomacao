@@ -27,3 +27,7 @@ dist_instalador/
 frontend/dist_instalador/
 scratch_*.py
 test_captcha.png
+.gradle/
+**/build/
+*.iml
+.idea/
