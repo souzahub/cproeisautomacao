@@ -5,7 +5,10 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.cproeis.app.R
+import com.cproeis.app.api.ApiClient
+import kotlinx.coroutines.launch
 import com.cproeis.app.databinding.ActivityMainBinding
 import com.cproeis.app.ui.dashboard.DashboardFragment
 import com.cproeis.app.ui.login.LoginActivity
@@ -50,7 +53,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (savedInstanceState == null) {
+            limparLogsAntigos()
             replaceFragment(DashboardFragment())
+        }
+    }
+
+    // limpa os logs da execucao anterior a cada abertura do app,
+    // exceto se o bot ainda estiver rodando (nao descarta log ao vivo)
+    private fun limparLogsAntigos() {
+        lifecycleScope.launch {
+            try {
+                val api = ApiClient.getService(this@MainActivity)
+                val status = api.getBotStatus()
+                val rodando = status.body()?.status?.lowercase() in listOf("running", "rodando")
+                if (!rodando) {
+                    api.clearBotLogs()
+                }
+            } catch (e: Exception) {
+                // Falha de rede
+            }
         }
     }
 

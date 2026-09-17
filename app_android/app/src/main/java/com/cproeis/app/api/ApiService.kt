@@ -30,6 +30,9 @@ interface ApiService {
     @GET("api/bot/logs")
     suspend fun getBotLogs(@Query("since") since: Int = 0): Response<BotLogsResponse>
 
+    @POST("api/bot/logs/clear")
+    suspend fun clearBotLogs(): Response<BotStartResponse>
+
     @GET("api/comprovantes/vagas-report")
     suspend fun getVagasReport(): Response<VagasReportResponse>
 }

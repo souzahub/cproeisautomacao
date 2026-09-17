@@ -36,6 +36,14 @@ class LogsFragment : Fragment() {
 
         binding.btnClearLogs.setOnClickListener {
             adapter.updateList(emptyList())
+            // limpa tambem no servidor, senao o polling traz os logs de volta
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    ApiClient.getService(requireContext()).clearBotLogs()
+                } catch (e: Exception) {
+                    // Falha de rede
+                }
+            }
         }
 
         startPollingLogs()
