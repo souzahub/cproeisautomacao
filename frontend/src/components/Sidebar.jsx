@@ -23,7 +23,8 @@ export function Sidebar({ currentTab, onSelectTab, user, onLogout, theme, onTogg
       updateQueueCount()
     }
     ping()
-    const interval = setInterval(ping, 10000)
+    // indicador de online/offline: 30s e suficiente e alivia o servidor
+    const interval = setInterval(ping, 30000)
 
     function handleQueueUpdated() {
       updateQueueCount()

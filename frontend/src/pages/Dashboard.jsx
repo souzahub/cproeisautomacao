@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { Capacitor } from "@capacitor/core"
-import { botApi, clientsApi, usersApi, settingsApi, comprovantesApi } from "../api/client"
-import { consultVagasDirectNative, runAutomationDirectNative } from "../api/nativeProeis"
+import { botApi, clientsApi, usersApi, settingsApi, comprovantesApi, schedulesApi } from "../api/client"
 import { printExecutionSummary } from "../utils/printSummary"
 import { StatusBadge } from "../components/StatusBadge"
 import { Skeleton } from "../components/Skeleton"
@@ -26,6 +25,10 @@ import {
 import { Button } from "../components/ui/button"
 import { MaskedText } from "../components/ui/masked-text"
 
+// o robo roda no app do computador (python + playwright, ip brasileiro).
+// no celular o painel e so de consulta: dados, status e logs.
+const isCelular = Capacitor.isNativePlatform()
+
 export function Dashboard({ user, onNavigateTab }) {
   const isMaster = user?.role === "master"
   const [statusInfo, setStatusInfo] = useState({
@@ -35,6 +38,9 @@ export function Dashboard({ user, onNavigateTab }) {
     pid: null,
     logs_count: 0
   })
+  // define o ritmo do polling na web/celular: rapido so durante a execucao
+  const pollRapido = statusInfo.status === "running"
+  const [schedules, setSchedules] = useState([])
   const [selectedMode, setSelectedMode] = useState("homologacao")
   const manualModeRef = useRef(false)
   const [logs, setLogs] = useState([])
@@ -93,6 +99,13 @@ export function Dashboard({ user, onNavigateTab }) {
     } catch (err) { }
   }
 
+  async function fetchSchedules() {
+    try {
+      const data = await schedulesApi.list()
+      setSchedules(data || [])
+    } catch (err) { }
+  }
+
   async function fetchLogs() {
     try {
       const data = await botApi.getLogs(0)
@@ -110,7 +123,7 @@ export function Dashboard({ user, onNavigateTab }) {
   useEffect(() => {
     async function loadAll() {
       setInitialLoading(true)
-      await Promise.all([fetchClients(), fetchUsers(), fetchStatus(), fetchLogs(), fetchHistory()])
+      await Promise.all([fetchClients(), fetchUsers(), fetchStatus(), fetchLogs(), fetchHistory(), fetchSchedules()])
       setInitialLoading(false)
     }
     loadAll()
@@ -121,6 +134,7 @@ export function Dashboard({ user, onNavigateTab }) {
         fetchStatus()
         fetchLogs()
         fetchHistory()
+        fetchSchedules()
       }
     }
     window.addEventListener("cproeis:refresh-view", handlePullRefresh)
@@ -148,16 +162,18 @@ export function Dashboard({ user, onNavigateTab }) {
         if (unsubStatus) unsubStatus()
       }
     } else {
+      // com o robo parado nao ha log novo para buscar: basta olhar o status
+      // de vez em quando. so durante a execucao vale consultar de 2,5 em 2,5s.
       const interval = setInterval(() => {
         fetchStatus()
-        fetchLogs()
-      }, 2500)
+        if (pollRapido) fetchLogs()
+      }, pollRapido ? 2500 : 30000)
       return () => {
         window.removeEventListener("cproeis:refresh-view", handlePullRefresh)
         clearInterval(interval)
       }
     }
-  }, [])
+  }, [pollRapido])
 
   useEffect(() => {
     if (logTerminalRef.current) {
@@ -229,13 +245,14 @@ export function Dashboard({ user, onNavigateTab }) {
     setSelectedMode(mode)
   }
 
-  function emitLocalLog(msg) {
-    const timeStr = new Date().toTimeString().split(" ")[0]
-    setLogs((prev) => [...prev, { timestamp: timeStr, message: String(msg).trim() }])
-  }
-
   async function handleStart() {
     setErrorMsg("")
+
+    if (isCelular) {
+      setErrorMsg("a automação roda no app do computador. pelo celular você acompanha os dados e os logs.")
+      return
+    }
+
     setActionLoading(true)
     try {
       const cId = selectedClientId ? Number(selectedClientId) : null
@@ -250,34 +267,6 @@ export function Dashboard({ user, onNavigateTab }) {
         }
         fetchHistory()
       } catch { }
-
-      if (Capacitor.isNativePlatform()) {
-        setLogs([])
-        setStatusInfo((prev) => ({
-          ...prev,
-          status: "running",
-          mode: selectedMode,
-          started_at: new Date().toISOString().replace("T", " ").substring(0, 19)
-        }))
-        let settings = {}
-        try {
-          settings = await settingsApi.get()
-        } catch { }
-        const res = await runAutomationDirectNative(selectedMode, selectedClient, settings, emitLocalLog, () => false)
-        const finalStatus = res.success ? "completed" : "error"
-        setStatusInfo((prev) => ({ ...prev, status: finalStatus }))
-        if (currentExecutionIdRef.current) {
-          try {
-            await botApi.updateExecution(currentExecutionIdRef.current, {
-              status: finalStatus,
-              finished_at: true
-            })
-            currentExecutionIdRef.current = null
-          } catch { }
-        }
-        fetchHistory()
-        return
-      }
 
       await botApi.start(selectedMode, cId, selectedClient)
       await fetchStatus()
@@ -291,6 +280,12 @@ export function Dashboard({ user, onNavigateTab }) {
 
   async function handleConsult() {
     setErrorMsg("")
+
+    if (isCelular) {
+      setErrorMsg("a consulta roda no app do computador. pelo celular você acompanha os dados e os logs.")
+      return
+    }
+
     setActionLoading(true)
     try {
       const cId = selectedClientId ? Number(selectedClientId) : null
@@ -305,34 +300,6 @@ export function Dashboard({ user, onNavigateTab }) {
         }
         fetchHistory()
       } catch { }
-
-      if (Capacitor.isNativePlatform()) {
-        setLogs([])
-        setStatusInfo((prev) => ({
-          ...prev,
-          status: "running",
-          mode: "consulta",
-          started_at: new Date().toISOString().replace("T", " ").substring(0, 19)
-        }))
-        let settings = {}
-        try {
-          settings = await settingsApi.get()
-        } catch { }
-        const res = await consultVagasDirectNative(selectedClient, settings, emitLocalLog)
-        const finalStatus = res.success ? "completed" : "error"
-        setStatusInfo((prev) => ({ ...prev, status: finalStatus }))
-        if (currentExecutionIdRef.current) {
-          try {
-            await botApi.updateExecution(currentExecutionIdRef.current, {
-              status: finalStatus,
-              finished_at: true
-            })
-            currentExecutionIdRef.current = null
-          } catch { }
-        }
-        fetchHistory()
-        return
-      }
 
       await botApi.consult(cId, selectedClient)
       await fetchStatus()
@@ -461,6 +428,46 @@ export function Dashboard({ user, onNavigateTab }) {
 
   const isRunning = statusInfo.status === "running"
 
+  // qual agendamento ativo dispara primeiro, varrendo os proximos 7 dias.
+  // 0 = segunda, mesma convencao usada no backend.
+  const proximoAgendamento = (() => {
+    const ativos = schedules.filter((s) => s.is_active)
+    if (ativos.length === 0) return null
+
+    const agora = new Date()
+    const DIAS_CURTOS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+    let melhor = null
+
+    for (const s of ativos) {
+      const dias = String(s.dias_semana || "").split(",").map((d) => parseInt(d.trim(), 10)).filter((d) => !isNaN(d))
+      const [h, m] = String(s.hora || "08:00").split(":").map((v) => parseInt(v, 10))
+      if (isNaN(h) || isNaN(m)) continue
+
+      for (let offset = 0; offset < 8; offset++) {
+        const alvo = new Date(agora)
+        alvo.setDate(agora.getDate() + offset)
+        alvo.setHours(h, m, 0, 0)
+        if (alvo <= agora) continue
+
+        // getDay(): 0 = domingo. converte para 0 = segunda.
+        const diaSemana = (alvo.getDay() + 6) % 7
+        if (!dias.includes(diaSemana)) continue
+
+        if (!melhor || alvo < melhor.quando) {
+          const prefixo = offset === 0 ? "hoje" : offset === 1 ? "amanhã" : DIAS_CURTOS[diaSemana]
+          melhor = {
+            quando: alvo,
+            texto: `${prefixo} às ${s.hora}`,
+            nome: s.name || "agendamento"
+          }
+        }
+        break
+      }
+    }
+
+    return melhor
+  })()
+
   const filteredClients = clients.filter((c) => {
     const q = clientSearchQuery.toLowerCase().trim()
     if (!q) return true
@@ -573,10 +580,15 @@ export function Dashboard({ user, onNavigateTab }) {
                 </div>
 
                 <div className="metric-card">
-                  <span className="metric-label">registros de log</span>
+                  <span className="metric-label">próximo agendamento</span>
                   <span className="metric-value">
-                    {statusInfo.logs_count} linhas
+                    {proximoAgendamento ? proximoAgendamento.texto : "nenhum ativo"}
                   </span>
+                  {proximoAgendamento && (
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                      {proximoAgendamento.nome}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -803,36 +815,42 @@ export function Dashboard({ user, onNavigateTab }) {
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: "10px" }}>
-                <Button
-                  variant="secondary"
-                  onClick={handleConsult}
-                  disabled={isRunning || actionLoading}
-                  loading={actionLoading && statusInfo.mode === "consulta"}
-                >
-                  minhas vagas
-                </Button>
+              {isCelular ? (
+                <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                  a automação roda no app do computador — aqui você acompanha os dados e os logs
+                </span>
+              ) : (
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <Button
+                    variant="secondary"
+                    onClick={handleConsult}
+                    disabled={isRunning || actionLoading}
+                    loading={actionLoading && statusInfo.mode === "consulta"}
+                  >
+                    minhas vagas
+                  </Button>
 
-                {!isRunning ? (
-                  <Button
-                    variant="primary"
-                    onClick={handleStart}
-                    disabled={actionLoading}
-                    loading={actionLoading && statusInfo.mode !== "consulta"}
-                  >
-                    iniciar automação
-                  </Button>
-                ) : (
-                  <Button
-                    variant="destructive"
-                    onClick={handleStop}
-                    disabled={actionLoading}
-                    loading={actionLoading}
-                  >
-                    interromper automação
-                  </Button>
-                )}
-              </div>
+                  {!isRunning ? (
+                    <Button
+                      variant="primary"
+                      onClick={handleStart}
+                      disabled={actionLoading}
+                      loading={actionLoading && statusInfo.mode !== "consulta"}
+                    >
+                      iniciar automação
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="destructive"
+                      onClick={handleStop}
+                      disabled={actionLoading}
+                      loading={actionLoading}
+                    >
+                      interromper automação
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
