@@ -7,7 +7,9 @@ cd /d "%~dp0"
 echo ============================================================
 echo    Gerador de Instalador Desktop CPROEIS (Windows .exe)
 echo ============================================================
-taskkill /F /IM "CPROEIS Automacao.exe" >nul 2>&1
+taskkill /F /T /IM "CPROEIS Automacao.exe" >nul 2>&1
+taskkill /F /T /IM "electron.exe" >nul 2>&1
+timeout /t 2 >nul 2>&1
 
 cd frontend
 

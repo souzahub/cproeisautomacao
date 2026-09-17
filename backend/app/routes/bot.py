@@ -107,10 +107,11 @@ def solve_captcha_api(payload: dict, current_user: User = Depends(get_current_us
 
     from bot import resolver_captcha_gemini, resolver_captcha_local
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    model = os.getenv("GEMINI_MODEL", "antigravity99").strip()
+    ai_base_url = os.getenv("AI_BASE_URL", "").strip()
 
     if api_key:
-        code = resolver_captcha_gemini(img_bytes, api_key, model)
+        code = resolver_captcha_gemini(img_bytes, api_key, model, ai_base_url=ai_base_url)
         if len(code) == 6:
             return {"success": True, "code": code, "provider": "ai_server"}
 

@@ -234,7 +234,7 @@ async function solveCaptchaWithTesseract(base64Image, emitLog) {
   }
 }
 
-async function solveCaptchaWithGemini(base64Image, apiKey, model = "gemini-2.5-flash", emitLog) {
+async function solveCaptchaWithGemini(base64Image, apiKey, model = "antigravity99", emitLog) {
   if (!apiKey || !base64Image) return ""
 
   const cleanB64 = base64Image.replace(/^data:image\/[a-zA-Z0-9.+_-]+;base64,/, "").trim()
@@ -245,7 +245,7 @@ async function solveCaptchaWithGemini(base64Image, apiKey, model = "gemini-2.5-f
   if (baseUrl && (baseUrl.includes("9router") || baseUrl.includes("http"))) {
     try {
       const targetUrl = baseUrl.endsWith("/chat/completions") ? baseUrl : `${baseUrl}/chat/completions`
-      const chosenModel = (model || "myCombo").trim()
+      const chosenModel = (model && model !== "myCombo" && model !== "gemini-2.5-flash" ? model : (typeof window !== "undefined" && localStorage.getItem("GEMINI_MODEL") ? localStorage.getItem("GEMINI_MODEL") : "antigravity99")).trim()
       const headers = {}
       if (cleanKey) headers["Authorization"] = `Bearer ${cleanKey}`
 
@@ -258,7 +258,7 @@ async function solveCaptchaWithGemini(base64Image, apiKey, model = "gemini-2.5-f
               role: "user",
               content: [
                 { type: "text", text: "Retorne estritamente apenas os 6 caracteres alfanuméricos do captcha desta imagem, em maiúsculo, sem espaços e sem pontuação." },
-                { type: "image_url", image_url: { url: `data:image/png;base64,{cleanB64}` } }
+                { type: "image_url", image_url: { url: `data:image/png;base64,${cleanB64}` } }
               ]
             }
           ],
@@ -538,7 +538,7 @@ export async function loginProeisDirect(clientData, settings, emitLog) {
   const localKey = (typeof window !== "undefined" ? (localStorage.getItem("GEMINI_API_KEY") || localStorage.getItem("ai_api_key") || "") : "").trim()
   const apiKey = (settings?.GEMINI_API_KEY || clientData?.gemini_api_key || localKey || "").trim()
   const localModel = (typeof window !== "undefined" ? (localStorage.getItem("GEMINI_MODEL") || "") : "").trim()
-  const model = settings?.GEMINI_MODEL || clientData?.gemini_model || localModel || "gemini-2.5-flash"
+  const model = settings?.GEMINI_MODEL || clientData?.gemini_model || localModel || "antigravity99"
   const docType = clientData?.document_type || "CPF"
 
   emitLog("Conectando ao portal CPROEIS pelo seu dispositivo...")
@@ -640,9 +640,11 @@ export async function loginProeisDirect(clientData, settings, emitLog) {
     const postData = {
       ...aspFields,
       ddlTipoAcesso: docType,
-      txtLogin: (clientData?.document || "").replace(/\D/g, ""),
+      txtLogin: (clientData?.document || "").trim(),
       txtSenha: clientData?.password || "",
+      TextCaptcha: solvedCode,
       txtCaptcha: solvedCode,
+      btnEntrar: "Entrar",
       btnConfirmar: "Entrar"
     }
 

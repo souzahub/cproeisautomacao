@@ -24,7 +24,7 @@ def carregar_configuracao():
     senha = os.getenv("SENHA", "")
     convenio = os.getenv("CONVENIO", "HCPM - RAS")
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash").strip()
+    gemini_model = os.getenv("GEMINI_MODEL", "antigravity99").strip()
     
     tipo_data = os.getenv("TIPO_DATA", "dias_frente").strip()
     data_inicio = os.getenv("DATA_INICIO", "").strip()
@@ -81,7 +81,7 @@ def resolver_captcha_gemini(img_bytes, api_key, modelo_preferido, ai_base_url=""
         return ""
     b64_img = base64.b64encode(img_bytes).decode("utf-8")
     clean_key = api_key.strip()
-    base_url = (ai_base_url or os.getenv("AI_BASE_URL", "")).strip().rstrip("/")
+    base_url = (ai_base_url or os.getenv("AI_BASE_URL", "") or "https://9router.devsouza.online/v1").strip().rstrip("/")
 
     def extrair_codigo(texto):
         if not texto:
@@ -93,56 +93,63 @@ def resolver_captcha_gemini(img_bytes, api_key, modelo_preferido, ai_base_url=""
         return m.group(0).upper() if m else (limpo[:6] if len(limpo) >= 6 else "")
 
     if base_url:
-        try:
-            target_url = base_url if base_url.endswith("/chat/completions") else f"{base_url}/chat/completions"
-            chosen_model = (modelo_preferido or "gpt1").strip()
-            payload = {
-                "model": chosen_model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "Retorne estritamente apenas os 6 caracteres alfanumericos do captcha desta imagem, em maiusculo, sem espacos e sem pontuacao."},
-                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64_img}"}}
-                        ]
-                    }
-                ],
-                "temperature": 0.0,
-                "stream": False
-            }
-            req_headers = {"Content-Type": "application/json"}
-            if clean_key:
-                req_headers["Authorization"] = f"Bearer {clean_key}"
-            req = urllib.request.Request(
-                target_url,
-                data=json.dumps(payload).encode("utf-8"),
-                headers=req_headers
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                resp_raw = resp.read().decode("utf-8")
-                texto = ""
-                try:
-                    data = json.loads(resp_raw)
-                    texto = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                except Exception:
-                    for line in resp_raw.splitlines():
-                        line = line.strip()
-                        if line.startswith("data:"):
-                            chunk_str = line[5:].strip()
-                            if chunk_str and chunk_str != "[DONE]":
-                                try:
-                                    chunk_data = json.loads(chunk_str)
-                                    delta = chunk_data.get("choices", [{}])[0].get("delta", {})
-                                    content_part = delta.get("content", "")
-                                    if content_part:
-                                        texto += content_part
-                                except Exception:
-                                    pass
-                codigo = extrair_codigo(texto)
-                if len(codigo) == 6:
-                    return codigo
-        except Exception:
-            pass
+        target_url = base_url if base_url.endswith("/chat/completions") else f"{base_url}/chat/completions"
+        candidate_models = []
+        if modelo_preferido and modelo_preferido.strip():
+            candidate_models.append(modelo_preferido.strip())
+        for fallback_m in ["antigravity99", "myCombo", "gpt1", "ag/gemini-3.7-flash", "ag/gemini-3.8-flash"]:
+            if fallback_m not in candidate_models:
+                candidate_models.append(fallback_m)
+
+        for chosen_model in candidate_models:
+            try:
+                payload = {
+                    "model": chosen_model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Retorne estritamente apenas os 6 caracteres alfanumericos do captcha desta imagem, em maiusculo, sem espacos e sem pontuacao."},
+                                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64_img}"}}
+                            ]
+                        }
+                    ],
+                    "temperature": 0.0,
+                    "stream": False
+                }
+                req_headers = {"Content-Type": "application/json"}
+                if clean_key:
+                    req_headers["Authorization"] = f"Bearer {clean_key}"
+                req = urllib.request.Request(
+                    target_url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers=req_headers
+                )
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    resp_raw = resp.read().decode("utf-8")
+                    texto = ""
+                    try:
+                        data = json.loads(resp_raw)
+                        texto = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    except Exception:
+                        for line in resp_raw.splitlines():
+                            line = line.strip()
+                            if line.startswith("data:"):
+                                chunk_str = line[5:].strip()
+                                if chunk_str and chunk_str != "[DONE]":
+                                    try:
+                                        chunk_data = json.loads(chunk_str)
+                                        delta = chunk_data.get("choices", [{}])[0].get("delta", {})
+                                        content_part = delta.get("content", "")
+                                        if content_part:
+                                            texto += content_part
+                                    except Exception:
+                                        pass
+                    codigo = extrair_codigo(texto)
+                    if len(codigo) == 6:
+                        return codigo
+            except Exception:
+                continue
 
     if clean_key.startswith("sk-or-"):
         try:
@@ -310,18 +317,27 @@ def resolver_captcha_local(img_bytes, ocr):
     return outros_candidatos[0] if outros_candidatos else ""
 
 def extrair_captcha_pagina(page):
+    try:
+        html = page.content()
+        matches = re.findall(r"data:image/[^;]+;base64,([a-zA-Z0-9+/=]{100,})", html)
+        if matches:
+            return base64.b64decode(matches[-1])
+    except Exception:
+        pass
+
     elementos = []
     for _ in range(3):
         try:
-            elementos = page.query_selector_all("div[style*='data:image'], div[style*='background'], img[src*='data:image'], img[id*='Captcha'], div[id*='Captcha']")
-            break
+            elementos = page.query_selector_all("img[src*='data:image'], div[style*='data:image'], img[id*='Captcha'], img[src*='Captcha'], #imgCaptcha, div[id*='Captcha'] img")
+            if elementos:
+                break
         except Exception:
-            time.sleep(1)
+            time.sleep(0.5)
 
     for el in reversed(elementos):
         try:
             box = el.bounding_box()
-            if box and box["width"] > 50 and box["height"] > 30:
+            if box and box["width"] > 40 and box["height"] > 20:
                 style = el.get_attribute("style") or ""
                 m_style = re.search(r"data:image/[^;]+;base64,([a-zA-Z0-9+/=]+)", style)
                 if m_style:
@@ -336,10 +352,12 @@ def extrair_captcha_pagina(page):
         except Exception:
             continue
 
-    html = page.content()
-    matches = re.findall(r"data:image/[^;]+;base64,([a-zA-Z0-9+/=]+)", html)
-    if matches:
-        return base64.b64decode(matches[-1])
+    try:
+        fallback_el = page.query_selector("#divCaptcha, div[id*='Captcha'], #lnkNewCaptcha")
+        if fallback_el:
+            return fallback_el.screenshot()
+    except Exception:
+        pass
             
     return None
 
@@ -381,7 +399,12 @@ def obter_captcha(page, ocr, cfg, tipo_doc="CPF"):
 
     def resolver_com_gemini(captcha_bytes):
         if cfg.get("gemini_api_key"):
-            codigo = resolver_captcha_gemini(captcha_bytes, cfg["gemini_api_key"], cfg.get("gemini_model", "gemini-3.7-flash"))
+            codigo = resolver_captcha_gemini(
+                captcha_bytes,
+                cfg["gemini_api_key"],
+                cfg.get("gemini_model", "antigravity99"),
+                ai_base_url=cfg.get("ai_base_url", "")
+            )
             if len(codigo) == 6:
                 return codigo
         return ""
@@ -422,14 +445,30 @@ def realizar_login(page, ocr, cfg):
     if not url.startswith("http"):
         url = f"https://{url}"
 
+    def on_dialog(dialog):
+        print(f"Alerta do portal: {dialog.message}")
+        try:
+            dialog.accept()
+        except Exception:
+            pass
+
     try:
-        page.goto(url, wait_until="networkidle", timeout=45000)
+        page.on("dialog", on_dialog)
+    except Exception:
+        pass
+
+    try:
+        page.goto(url, wait_until="domcontentloaded", timeout=25000)
     except Exception as e:
         print(f"Tentando conexao direta com login: {str(e)}")
         try:
-            page.goto("https://www.proeis.rj.gov.br/", wait_until="commit", timeout=45000)
+            page.goto("https://www.proeis.rj.gov.br/", wait_until="commit", timeout=20000)
         except Exception:
             pass
+    try:
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+    except Exception:
+        pass
     
     tipo_doc = cfg.get("tipo_documento", "CPF")
     garantir_formulario_login(page, tipo_doc)
@@ -443,6 +482,10 @@ def realizar_login(page, ocr, cfg):
         try:
             page.fill("#txtLogin", cfg.get("documento", ""))
             page.fill("#txtSenha", cfg.get("senha", ""))
+            try:
+                page.fill("#TextCaptcha", "")
+            except Exception:
+                pass
         except Exception as e:
             print(f"Erro ao preencher credenciais: {str(e)}")
             time.sleep(2)
@@ -496,7 +539,7 @@ def realizar_login(page, ocr, cfg):
             return True
 
         try:
-            erro_elem = page.query_selector("#lblMsg, .alert, font[color='Red']")
+            erro_elem = page.query_selector("#lblMsg, .alert, font[color='Red'], span[id*='lbl']")
         except Exception:
             erro_elem = None
         if erro_elem:

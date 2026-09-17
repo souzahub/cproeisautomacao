@@ -24,7 +24,7 @@ export function Settings() {
     TENTATIVAS_MAXIMAS: 120,
     MODO_VISIVEL: false,
     MODO_HOMOLOGACAO: true,
-    GEMINI_MODEL: "gemini-3.7-flash",
+    GEMINI_MODEL: "antigravity99",
     GEMINI_API_KEY: "",
     AI_BASE_URL: "https://9router.devsouza.online/v1"
   })

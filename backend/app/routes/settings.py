@@ -71,7 +71,7 @@ def get_settings(current_user: User = Depends(get_current_user)):
         "TENTATIVAS_MAXIMAS": int(env_data.get("TENTATIVAS_MAXIMAS", "120")),
         "MODO_VISIVEL": env_data.get("MODO_VISIVEL", "false").lower() == "true",
         "MODO_HOMOLOGACAO": env_data.get("MODO_HOMOLOGACAO", "true").lower() == "true",
-        "GEMINI_MODEL": env_data.get("GEMINI_MODEL", "gemini-3.7-flash"),
+        "GEMINI_MODEL": env_data.get("GEMINI_MODEL", "antigravity99"),
         "GEMINI_API_KEY": env_data.get("GEMINI_API_KEY", ""),
         "AI_BASE_URL": env_data.get("AI_BASE_URL", "https://9router.devsouza.online/v1")
     }
@@ -117,7 +117,7 @@ def update_settings(settings_in: BotSettingsSchema, current_user: User = Depends
 def test_ai_key(payload: dict, current_user: User = Depends(get_current_user)):
     api_key = (payload.get("api_key") or "").strip()
     model = (payload.get("model") or "gemini-3.7-flash").strip()
-    base_url = (payload.get("base_url") or payload.get("ai_base_url") or os.getenv("AI_BASE_URL", "https://9router.devsouza.online/v1")).strip()
+    base_url = (payload.get("base_url") or payload.get("ai_base_url") or os.getenv("AI_BASE_URL") or "https://9router.devsouza.online/v1").strip()
     
     if not api_key:
         raise HTTPException(status_code=400, detail="Chave de API não informada.")
@@ -137,4 +137,4 @@ def test_ai_key(payload: dict, current_user: User = Depends(get_current_user)):
     if code:
         return {"success": True, "message": f"Conexão bem sucedida. Captcha resolvido: {code}", "code": code}
     
-    return {"success": False, "message": "Não foi possível resolver o captcha. Verifique a chave e o endpoint informado."}
+    return {"success": False, "message": f"O provedor não retornou um código válido. Endpoint usado: {base_url} | modelo: {model}"}

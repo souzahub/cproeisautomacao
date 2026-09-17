@@ -355,6 +355,9 @@ export const settingsApi = {
     }
   },
   testAi: async (apiKey, model, baseUrl = "") => {
+    if (window.electronAPI && window.electronAPI.testAi) {
+      return window.electronAPI.testAi(apiKey, model, baseUrl)
+    }
     return apiRequest("/api/settings/test-ai", {
       method: "POST",
       body: JSON.stringify({ api_key: apiKey, model, base_url: baseUrl })
@@ -374,15 +377,27 @@ export const botApi = {
       try {
         const settings = await settingsApi.get()
         if (settings) {
-          if (settings.GEMINI_API_KEY) mergedData.gemini_api_key = settings.GEMINI_API_KEY
-          if (settings.GEMINI_MODEL) mergedData.gemini_model = settings.GEMINI_MODEL
-          if (settings.AI_BASE_URL) mergedData.ai_base_url = settings.AI_BASE_URL
-          if (settings.PROEIS_URL) mergedData.proeis_url = settings.PROEIS_URL
+          if (settings.GEMINI_API_KEY && !mergedData.gemini_api_key) mergedData.gemini_api_key = settings.GEMINI_API_KEY
+          if (settings.GEMINI_MODEL && !mergedData.gemini_model) mergedData.gemini_model = settings.GEMINI_MODEL
+          if (settings.AI_BASE_URL && !mergedData.ai_base_url) mergedData.ai_base_url = settings.AI_BASE_URL
+          if (settings.PROEIS_URL && !mergedData.proeis_url) mergedData.proeis_url = settings.PROEIS_URL
           if (!mergedData.password && settings.SENHA) mergedData.password = settings.SENHA
           if (!mergedData.document && settings.CPF) mergedData.document = settings.CPF
           if (!mergedData.convenio && settings.CONVENIO) mergedData.convenio = settings.CONVENIO
+          if (mergedData.modo_visivel === undefined && settings.MODO_VISIVEL !== undefined) mergedData.modo_visivel = settings.MODO_VISIVEL
         }
       } catch {}
+
+      if (!mergedData.gemini_api_key && typeof window !== "undefined" && window.localStorage) {
+        mergedData.gemini_api_key = localStorage.getItem("GEMINI_API_KEY") || ""
+      }
+      if (!mergedData.gemini_model && typeof window !== "undefined" && window.localStorage) {
+        mergedData.gemini_model = localStorage.getItem("GEMINI_MODEL") || ""
+      }
+      if (!mergedData.ai_base_url && typeof window !== "undefined" && window.localStorage) {
+        mergedData.ai_base_url = localStorage.getItem("AI_BASE_URL") || ""
+      }
+
       return window.electronAPI.startBot(mode, mergedData)
     }
     return apiRequest("/api/bot/start", {
@@ -396,15 +411,27 @@ export const botApi = {
       try {
         const settings = await settingsApi.get()
         if (settings) {
-          if (settings.GEMINI_API_KEY) mergedData.gemini_api_key = settings.GEMINI_API_KEY
-          if (settings.GEMINI_MODEL) mergedData.gemini_model = settings.GEMINI_MODEL
-          if (settings.AI_BASE_URL) mergedData.ai_base_url = settings.AI_BASE_URL
-          if (settings.PROEIS_URL) mergedData.proeis_url = settings.PROEIS_URL
+          if (settings.GEMINI_API_KEY && !mergedData.gemini_api_key) mergedData.gemini_api_key = settings.GEMINI_API_KEY
+          if (settings.GEMINI_MODEL && !mergedData.gemini_model) mergedData.gemini_model = settings.GEMINI_MODEL
+          if (settings.AI_BASE_URL && !mergedData.ai_base_url) mergedData.ai_base_url = settings.AI_BASE_URL
+          if (settings.PROEIS_URL && !mergedData.proeis_url) mergedData.proeis_url = settings.PROEIS_URL
           if (!mergedData.password && settings.SENHA) mergedData.password = settings.SENHA
           if (!mergedData.document && settings.CPF) mergedData.document = settings.CPF
           if (!mergedData.convenio && settings.CONVENIO) mergedData.convenio = settings.CONVENIO
+          if (mergedData.modo_visivel === undefined && settings.MODO_VISIVEL !== undefined) mergedData.modo_visivel = settings.MODO_VISIVEL
         }
       } catch {}
+
+      if (!mergedData.gemini_api_key && typeof window !== "undefined" && window.localStorage) {
+        mergedData.gemini_api_key = localStorage.getItem("GEMINI_API_KEY") || ""
+      }
+      if (!mergedData.gemini_model && typeof window !== "undefined" && window.localStorage) {
+        mergedData.gemini_model = localStorage.getItem("GEMINI_MODEL") || ""
+      }
+      if (!mergedData.ai_base_url && typeof window !== "undefined" && window.localStorage) {
+        mergedData.ai_base_url = localStorage.getItem("AI_BASE_URL") || ""
+      }
+
       return window.electronAPI.startConsult(mergedData)
     }
     return apiRequest("/api/bot/consult", {

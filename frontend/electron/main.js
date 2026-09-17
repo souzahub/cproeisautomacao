@@ -7,6 +7,12 @@ if (process.platform === "win32") {
   app.commandLine.appendSwitch("no-sandbox")
 }
 
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+  process.exit(0)
+}
+
 let mainWindow = null
 let currentProcess = null
 let botStatus = {
@@ -16,7 +22,18 @@ let botStatus = {
   logs_count: 0
 }
 
-setInterval(() => {}, 1000)
+function killCurrentProcess() {
+  if (currentProcess) {
+    try {
+      if (process.platform === "win32" && currentProcess.pid) {
+        spawn("taskkill", ["/pid", currentProcess.pid.toString(), "/T", "/F"])
+      } else {
+        currentProcess.kill("SIGKILL")
+      }
+    } catch {}
+    currentProcess = null
+  }
+}
 
 function getProjectRoot() {
   if (app.isPackaged) {
@@ -125,7 +142,9 @@ function getMergedEnv(rootDir, customData = {}) {
 
   if (customData.gemini_api_key) merged["GEMINI_API_KEY"] = customData.gemini_api_key
   if (customData.gemini_model) merged["GEMINI_MODEL"] = customData.gemini_model
+  if (customData.ai_base_url) merged["AI_BASE_URL"] = customData.ai_base_url
   if (customData.proeis_url) merged["PROEIS_URL"] = customData.proeis_url
+  if (customData.proxy) merged["PROXY_SERVER"] = customData.proxy
 
   return merged
 }
@@ -142,7 +161,9 @@ ipcMain.handle("bot:start", async (_event, { mode, clientData }) => {
   const env = getMergedEnv(rootDir, clientData || {})
 
   env["MODO_HOMOLOGACAO"] = mode === "homologacao" ? "true" : "false"
-  env["MODO_VISIVEL"] = "false"
+  if (clientData && clientData.modo_visivel !== undefined) {
+    env["MODO_VISIVEL"] = (clientData.modo_visivel === true || clientData.modo_visivel === "true") ? "true" : "false"
+  }
 
   if (clientData) {
     if (clientData.document_type) env["TIPO_DOCUMENTO"] = clientData.document_type
@@ -161,6 +182,10 @@ ipcMain.handle("bot:start", async (_event, { mode, clientData }) => {
     if (clientData.days_forward_max) env["DIAS_A_FRENTE_MAXIMO"] = String(clientData.days_forward_max)
     if (clientData.interval_seconds) env["INTERVALO_SEGUNDOS"] = String(clientData.interval_seconds)
     if (clientData.max_attempts) env["TENTATIVAS_MAXIMAS"] = String(clientData.max_attempts)
+    if (clientData.gemini_api_key) env["GEMINI_API_KEY"] = clientData.gemini_api_key
+    if (clientData.gemini_model) env["GEMINI_MODEL"] = clientData.gemini_model
+    if (clientData.ai_base_url) env["AI_BASE_URL"] = clientData.ai_base_url
+    if (clientData.proeis_url) env["PROEIS_URL"] = clientData.proeis_url
   }
 
   const now = new Date()
@@ -205,13 +230,19 @@ ipcMain.handle("bot:consult", async (_event, { clientData }) => {
   const scriptPath = path.join(rootDir, "consultar_vagas.py")
   const env = getMergedEnv(rootDir, clientData || {})
 
-  env["MODO_VISIVEL"] = "false"
+  if (clientData && clientData.modo_visivel !== undefined) {
+    env["MODO_VISIVEL"] = (clientData.modo_visivel === true || clientData.modo_visivel === "true") ? "true" : "false"
+  }
 
   if (clientData) {
     if (clientData.document_type) env["TIPO_DOCUMENTO"] = clientData.document_type
     if (clientData.document) env["CPF"] = clientData.document
     if (clientData.password) env["SENHA"] = clientData.password
     if (clientData.convenio) env["CONVENIO"] = clientData.convenio
+    if (clientData.gemini_api_key) env["GEMINI_API_KEY"] = clientData.gemini_api_key
+    if (clientData.gemini_model) env["GEMINI_MODEL"] = clientData.gemini_model
+    if (clientData.ai_base_url) env["AI_BASE_URL"] = clientData.ai_base_url
+    if (clientData.proeis_url) env["PROEIS_URL"] = clientData.proeis_url
   }
 
   const now = new Date()
@@ -245,6 +276,78 @@ ipcMain.handle("bot:consult", async (_event, { clientData }) => {
   })
 
   return { success: true }
+})
+
+ipcMain.handle("settings:test-ai", async (_event, { apiKey, model, baseUrl }) => {
+  const key = (apiKey || "").trim()
+  if (!key) {
+    return { success: false, message: "informe a chave de api antes de testar" }
+  }
+
+  const rootDir = getProjectRoot()
+  const env = getMergedEnv(rootDir)
+  const url = (baseUrl || env["AI_BASE_URL"] || "https://9router.devsouza.online/v1").trim().replace(/\/+$/, "")
+  const chosenModel = (model || env["GEMINI_MODEL"] || "antigravity99").trim()
+  const target = url.endsWith("/chat/completions") ? url : `${url}/chat/completions`
+
+  const samplePath = path.join(rootDir, "test_captcha.png")
+  let b64 = ""
+  if (fs.existsSync(samplePath)) {
+    b64 = fs.readFileSync(samplePath).toString("base64")
+  } else {
+    b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PcxbfwAAAABJRU5ErkJggg=="
+  }
+
+  try {
+    const resp = await fetch(target, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model: chosenModel,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Retorne estritamente apenas os 6 caracteres alfanumericos do captcha desta imagem, em maiusculo, sem espacos e sem pontuacao." },
+              { type: "image_url", image_url: { url: `data:image/png;base64,${b64}` } }
+            ]
+          }
+        ],
+        temperature: 0.0,
+        stream: false
+      })
+    })
+
+    if (!resp.ok) {
+      const body = await resp.text()
+      return {
+        success: false,
+        message: `provedor retornou status ${resp.status}. endpoint: ${target} | modelo: ${chosenModel} | ${body.slice(0, 200)}`
+      }
+    }
+
+    const data = await resp.json()
+    const texto = data?.choices?.[0]?.message?.content || ""
+    const limpo = texto.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()
+    const codigo = limpo.length >= 6 ? limpo.slice(0, 6) : ""
+
+    if (codigo.length === 6) {
+      return { success: true, message: `Conexão bem sucedida. Captcha resolvido: ${codigo}`, code: codigo }
+    }
+
+    return {
+      success: false,
+      message: `provedor respondeu, mas sem um código de 6 caracteres. modelo: ${chosenModel} | resposta: ${String(texto).slice(0, 120)}`
+    }
+  } catch (err) {
+    return {
+      success: false,
+      message: `falha ao contatar o provedor: ${err.message} | endpoint: ${target}`
+    }
+  }
 })
 
 ipcMain.handle("bot:clear-logs", async () => {
@@ -296,17 +399,19 @@ ipcMain.handle("comprovantes:open", async (_event, filePath) => {
 })
 
 ipcMain.handle("bot:stop", async () => {
-  if (currentProcess) {
-    try {
-      currentProcess.kill()
-    } catch {}
-    currentProcess = null
-    updateStatus({ status: "stopped" })
-  }
+  killCurrentProcess()
+  updateStatus({ status: "stopped" })
   return { success: true }
 })
 
 app.whenReady().then(() => {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+
   createWindow()
 
   app.on("activate", () => {
@@ -314,6 +419,13 @@ app.whenReady().then(() => {
   })
 })
 
+app.on("before-quit", () => {
+  killCurrentProcess()
+})
+
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit()
+  killCurrentProcess()
+  if (process.platform !== "darwin") {
+    app.quit()
+  }
 })
