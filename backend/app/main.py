@@ -8,7 +8,7 @@ from .config import ADMIN_EMAIL, ADMIN_PASSWORD, BASE_DIR, ENV_PATH
 from .database import engine, Base, SessionLocal
 from .models import User, ClientProfile
 from .security import get_password_hash
-from .routes import auth, users, settings, bot, comprovantes, clients
+from .routes import auth, users, settings, bot, comprovantes, clients, schedules
 
 Base.metadata.create_all(bind=engine)
 
@@ -118,6 +118,12 @@ app.include_router(clients.router)
 app.include_router(settings.router)
 app.include_router(bot.router)
 app.include_router(comprovantes.router)
+app.include_router(schedules.router)
+
+@app.on_event("startup")
+def iniciar_agendador():
+    from .services.scheduler_service import scheduler_service
+    scheduler_service.start()
 
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
 SERVE_FRONTEND = os.getenv("SERVE_FRONTEND", "false").lower() in ("true", "1", "yes")

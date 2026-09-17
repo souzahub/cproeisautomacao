@@ -326,6 +326,26 @@ export const clientsApi = {
   }
 }
 
+// agendamentos so fazem sentido no servidor (e la que disparam),
+// por isso nao tem cache offline como clientes/usuarios
+export const schedulesApi = {
+  list: () => apiRequest("/api/schedules"),
+  create: (data) => apiRequest("/api/schedules", {
+    method: "POST",
+    body: JSON.stringify(data)
+  }),
+  update: (id, data) => apiRequest(`/api/schedules/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data)
+  }),
+  toggle: (id) => apiRequest(`/api/schedules/${id}/toggle`, {
+    method: "POST"
+  }),
+  delete: (id) => apiRequest(`/api/schedules/${id}`, {
+    method: "DELETE"
+  })
+}
+
 export const settingsApi = {
   get: async () => {
     try {

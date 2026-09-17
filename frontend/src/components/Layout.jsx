@@ -9,6 +9,7 @@ import { Clients } from "../pages/Clients"
 import { Settings } from "../pages/Settings"
 import { Users } from "../pages/Users"
 import { Comprovantes } from "../pages/Comprovantes"
+import { Schedules } from "../pages/Schedules"
 
 export function Layout({ user, onLogout, theme, onToggleTheme }) {
   const isMaster = user && user.role === "master"
@@ -114,7 +115,8 @@ export function Layout({ user, onLogout, theme, onToggleTheme }) {
     clients: "gestão de clientes",
     settings: "configurações do sistema",
     users: "gestão de operadores",
-    comprovantes: "comprovantes de agendamento"
+    comprovantes: "comprovantes de agendamento",
+    schedules: "agendamentos automáticos"
   }
 
   return (
@@ -150,6 +152,7 @@ export function Layout({ user, onLogout, theme, onToggleTheme }) {
             {currentTab === "settings" && <Settings />}
             {currentTab === "users" && <Users currentUser={user} />}
             {currentTab === "comprovantes" && <Comprovantes />}
+            {currentTab === "schedules" && <Schedules />}
           </main>
         </PullToRefresh>
 

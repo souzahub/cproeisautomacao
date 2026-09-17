@@ -114,6 +114,39 @@ class ClientProfileResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ScheduleCreate(BaseModel):
+    name: Optional[str] = ""
+    client_id: Optional[int] = None
+    hora: str = "08:00"
+    dias_semana: str = "0,1,2,3,4"
+    mode: Optional[str] = "homologacao"
+    is_active: Optional[bool] = True
+
+class ScheduleUpdate(BaseModel):
+    name: Optional[str] = None
+    client_id: Optional[int] = None
+    hora: Optional[str] = None
+    dias_semana: Optional[str] = None
+    mode: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class ScheduleResponse(BaseModel):
+    id: int
+    user_id: Optional[int] = None
+    client_id: Optional[int] = None
+    name: Optional[str] = ""
+    hora: str
+    dias_semana: str
+    mode: str
+    is_active: bool
+    last_run_at: Optional[datetime] = None
+    last_result: Optional[str] = ""
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 class BotStartRequest(BaseModel):
     mode: Optional[str] = "homologacao"
     client_id: Optional[int] = None

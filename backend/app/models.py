@@ -63,3 +63,19 @@ class ClientProfile(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="clients")
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    client_id = Column(Integer, ForeignKey("client_profiles.id"), nullable=True, index=True)
+    name = Column(String, default="")
+    hora = Column(String, default="08:00")
+    dias_semana = Column(String, default="0,1,2,3,4")
+    mode = Column(String, default="homologacao")
+    is_active = Column(Boolean, default=True)
+    last_run_at = Column(DateTime, nullable=True)
+    last_result = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

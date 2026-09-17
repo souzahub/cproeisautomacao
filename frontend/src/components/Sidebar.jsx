@@ -148,6 +148,18 @@ export function Sidebar({ currentTab, onSelectTab, user, onLogout, theme, onTogg
           )}
 
           <button
+            className={`sidebar-nav-btn ${currentTab === "schedules" ? "active" : ""}`}
+            onClick={() => handleNavClick("schedules")}
+            title="Agendamentos automáticos"
+          >
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>agendamentos</span>
+          </button>
+
+          <button
             className={`sidebar-nav-btn ${currentTab === "comprovantes" ? "active" : ""}`}
             onClick={() => handleNavClick("comprovantes")}
             title="Relatórios e vagas agendadas"
