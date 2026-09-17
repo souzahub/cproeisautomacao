@@ -214,7 +214,7 @@ export function Schedules() {
           <div className="clients-header-info">
             <h3 className="card-title">agendamentos automáticos</h3>
             <p className="card-desc">
-              defina dias e horários fixos para o robô iniciar sozinho no servidor — vale para desktop, web e app
+              defina dias e horários fixos para o robô iniciar sozinho — a execução acontece no app do computador, com ele aberto
             </p>
           </div>
 
@@ -368,7 +368,7 @@ export function Schedules() {
               {editing ? "editar agendamento" : "novo agendamento automático"}
             </DialogTitle>
             <DialogDescription>
-              o robô iniciará sozinho no servidor nos dias e no horário escolhidos
+              o robô iniciará sozinho nos dias e no horário escolhidos, pelo app do computador
             </DialogDescription>
           </DialogHeader>
 
@@ -496,6 +496,12 @@ export function Schedules() {
                 />
                 <span className="form-label" style={{ cursor: "pointer" }}>agendamento ativo</span>
               </label>
+
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
+                o robô roda no app do computador, então ele precisa estar aberto no horário marcado.
+                se o computador estiver desligado, o agendamento ainda roda ao abrir o app — desde que
+                o atraso seja de até 30 minutos.
+              </p>
 
               <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
                 se o robô já estiver rodando na hora marcada, este agendamento é pulado e registrado —

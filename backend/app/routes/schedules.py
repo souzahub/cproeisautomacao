@@ -1,13 +1,28 @@
+from datetime import datetime, timedelta
 from typing import List
+from zoneinfo import ZoneInfo
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, Schedule
-from ..schemas import ScheduleCreate, ScheduleUpdate, ScheduleResponse
+from ..schemas import (
+    ScheduleCreate,
+    ScheduleUpdate,
+    ScheduleResponse,
+    ScheduleDueResponse,
+    ScheduleResultRequest,
+)
 from ..security import get_current_user
 from ..services.scheduler_service import scheduler_service
 
 router = APIRouter(prefix="/api/schedules", tags=["schedules"])
+
+TZ_BR = ZoneInfo("America/Sao_Paulo")
+
+# se o pc estava desligado na hora marcada, ainda vale rodar ao abrir o app
+# desde que o atraso seja pequeno. depois disso, perdeu a janela.
+ATRASO_MAXIMO_MIN = 30
 
 def validar_horario(hora: str):
     try:
@@ -54,6 +69,74 @@ def list_schedules(db: Session = Depends(get_db), current_user: User = Depends(g
     if current_user.role != "master":
         query = query.filter(Schedule.user_id == current_user.id)
     return query.order_by(Schedule.hora.asc(), Schedule.id.desc()).all()
+
+@router.get("/due", response_model=List[ScheduleDueResponse])
+def list_due_schedules(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Agendamentos vencidos que o app desktop deve executar agora.
+
+    O disparo acontece na maquina do usuario (IP brasileiro), nao na VPS.
+    Ao retornar um agendamento ja marcamos last_run_at: assim, se houver dois
+    desktops abertos, o segundo recebe lista vazia e o bot nao roda duplicado.
+    """
+    agora = datetime.now(TZ_BR)
+
+    query = db.query(Schedule).filter(Schedule.is_active == True)
+    if current_user.role != "master":
+        query = query.filter(Schedule.user_id == current_user.id)
+
+    vencidos = []
+    for schedule in query.all():
+        try:
+            dias = [int(d.strip()) for d in (schedule.dias_semana or "").split(",") if d.strip()]
+            if agora.weekday() not in dias:
+                continue
+
+            h, m = (schedule.hora or "08:00").split(":")[:2]
+            marcado = agora.replace(hour=int(h), minute=int(m), second=0, microsecond=0)
+        except Exception:
+            continue
+
+        atraso_min = int((agora - marcado).total_seconds() // 60)
+        if atraso_min < 0 or atraso_min > ATRASO_MAXIMO_MIN:
+            continue
+
+        # ja rodou nesta janela? (last_run_at e gravado naive em UTC)
+        if schedule.last_run_at:
+            ultimo = schedule.last_run_at.replace(tzinfo=ZoneInfo("UTC")).astimezone(TZ_BR)
+            if ultimo >= marcado:
+                continue
+
+        schedule.last_run_at = datetime.utcnow()
+        schedule.last_result = "reivindicado pelo desktop"
+        vencidos.append(
+            ScheduleDueResponse(
+                id=schedule.id,
+                name=schedule.name or f"agendamento {schedule.id}",
+                client_id=schedule.client_id,
+                mode=schedule.mode if schedule.mode in ["homologacao", "producao"] else "homologacao",
+                atraso_min=atraso_min,
+            )
+        )
+
+    if vencidos:
+        db.commit()
+    return vencidos
+
+
+@router.post("/{schedule_id}/resultado", response_model=ScheduleResponse)
+def report_result(
+    schedule_id: int,
+    payload: ScheduleResultRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """O desktop informa como terminou a execucao que ele reivindicou."""
+    schedule = buscar_agendamento(schedule_id, db, current_user)
+    schedule.last_result = (payload.resultado or "")[:250]
+    db.commit()
+    db.refresh(schedule)
+    return schedule
+
 
 @router.post("", response_model=ScheduleResponse)
 def create_schedule(schedule_in: ScheduleCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

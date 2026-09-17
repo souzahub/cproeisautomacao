@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getStatus: () => ipcRenderer.invoke("bot:status"),
   clearLogs: () => ipcRenderer.invoke("bot:clear-logs"),
   testAi: (apiKey, model, baseUrl) => ipcRenderer.invoke("settings:test-ai", { apiKey, model, baseUrl }),
+  configurarAgenda: (baseUrl, token) => ipcRenderer.invoke("agenda:configurar", { baseUrl, token }),
   listComprovantes: () => ipcRenderer.invoke("comprovantes:list"),
   openComprovante: (filePath) => ipcRenderer.invoke("comprovantes:open", filePath),
   onLog: (callback) => {

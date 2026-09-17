@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { authApi } from "./api/client"
+import { authApi, getBaseUrl } from "./api/client"
 import { syncWithCloud } from "./api/sync"
 import { Login } from "./pages/Login"
 import { Layout } from "./components/Layout"
@@ -26,6 +26,19 @@ export function App() {
   function toggleTheme() {
     setTheme((prev) => (prev === "light" ? "dark" : "light"))
   }
+
+  // no desktop os agendamentos disparam aqui na maquina (ip brasileiro),
+  // entao o electron precisa saber o servidor e o token para consultar
+  // os vencidos. sem usuario logado, o relogio fica desligado.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.electronAPI || !window.electronAPI.configurarAgenda) {
+      return
+    }
+    try {
+      const token = user ? localStorage.getItem("auth_token") : ""
+      window.electronAPI.configurarAgenda(getBaseUrl(), token || "")
+    } catch {}
+  }, [user])
 
   useEffect(() => {
     async function checkAuth() {

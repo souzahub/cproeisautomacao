@@ -147,6 +147,16 @@ class ScheduleResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ScheduleDueResponse(BaseModel):
+    id: int
+    name: Optional[str] = ""
+    client_id: Optional[int] = None
+    mode: str
+    atraso_min: int
+
+class ScheduleResultRequest(BaseModel):
+    resultado: str
+
 class BotStartRequest(BaseModel):
     mode: Optional[str] = "homologacao"
     client_id: Optional[int] = None

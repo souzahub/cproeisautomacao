@@ -151,7 +151,7 @@ function getMergedEnv(rootDir, customData = {}) {
 
 ipcMain.handle("bot:status", () => botStatus)
 
-ipcMain.handle("bot:start", async (_event, { mode, clientData }) => {
+async function iniciarBot({ mode, clientData }) {
   if (currentProcess) {
     return { success: false, message: "Automação já em execução." }
   }
@@ -219,6 +219,10 @@ ipcMain.handle("bot:start", async (_event, { mode, clientData }) => {
   })
 
   return { success: true }
+}
+
+ipcMain.handle("bot:start", async (_event, { mode, clientData }) => {
+  return iniciarBot({ mode, clientData })
 })
 
 ipcMain.handle("bot:consult", async (_event, { clientData }) => {
@@ -404,6 +408,137 @@ ipcMain.handle("bot:stop", async () => {
   return { success: true }
 })
 
+// ---------------------------------------------------------------------------
+// agendamentos
+//
+// o robo precisa rodar daqui (ip brasileiro), nao na vps (ip dos eua).
+// entao quem dispara e este relogio: a cada tique perguntamos ao servidor
+// quais agendamentos venceram e executamos localmente.
+// ---------------------------------------------------------------------------
+
+const AGENDA_INTERVALO_MS = 30 * 1000
+
+let agendaTimer = null
+let agendaConfig = { baseUrl: "", token: "" }
+let agendaOcupada = false
+
+function agendaLog(message) {
+  sendLog(`[agendamento] ${message}`)
+}
+
+async function agendaFetch(caminho, options = {}) {
+  const { baseUrl, token } = agendaConfig
+  if (!baseUrl || !token) return null
+
+  const resp = await fetch(`${baseUrl}${caminho}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {})
+    }
+  })
+
+  if (!resp.ok) {
+    throw new Error(`status ${resp.status}`)
+  }
+  return resp.json()
+}
+
+async function reportarResultado(scheduleId, resultado) {
+  try {
+    await agendaFetch(`/api/schedules/${scheduleId}/resultado`, {
+      method: "POST",
+      body: JSON.stringify({ resultado })
+    })
+  } catch {
+    // o resultado e informativo; se falhar nao vale travar o app
+  }
+}
+
+async function verificarAgendamentos() {
+  // uma rodada por vez: se a anterior ainda esta subindo o bot, espera o proximo tique
+  if (agendaOcupada) return
+  agendaOcupada = true
+
+  try {
+    const vencidos = await agendaFetch("/api/schedules/due")
+    if (!Array.isArray(vencidos) || vencidos.length === 0) return
+
+    for (const item of vencidos) {
+      const nome = item.name || `agendamento ${item.id}`
+
+      // nunca interrompe execucao em andamento: apenas registra e segue
+      if (currentProcess || botStatus.status === "running") {
+        agendaLog(`'${nome}' pulado (bot em execucao)`)
+        await reportarResultado(item.id, "pulado: bot ja em execucao")
+        continue
+      }
+
+      let clientData = null
+      if (item.client_id) {
+        try {
+          clientData = await agendaFetch(`/api/clients/${item.client_id}`)
+        } catch {
+          agendaLog(`'${nome}' falhou: nao consegui carregar o cliente`)
+          await reportarResultado(item.id, "erro: cliente nao encontrado")
+          continue
+        }
+      }
+
+      const atraso = item.atraso_min > 0 ? ` (${item.atraso_min} min de atraso)` : ""
+      agendaLog(`iniciando '${nome}' em modo ${item.mode}${atraso}`)
+
+      try {
+        const res = await iniciarBot({ mode: item.mode, clientData })
+        if (res && res.success) {
+          await reportarResultado(item.id, `executado pelo desktop em modo ${item.mode}`)
+        } else {
+          const msg = (res && res.message) || "falha ao iniciar"
+          agendaLog(`'${nome}': ${msg}`)
+          await reportarResultado(item.id, msg)
+        }
+      } catch (err) {
+        agendaLog(`'${nome}' erro: ${err.message}`)
+        await reportarResultado(item.id, `erro: ${err.message}`)
+      }
+
+      // um bot por vez; o resto volta no proximo tique
+      break
+    }
+  } catch {
+    // servidor fora do ar ou token expirado: tenta de novo no proximo tique,
+    // sem poluir o log do usuario a cada 30s
+  } finally {
+    agendaOcupada = false
+  }
+}
+
+function pararAgenda() {
+  if (agendaTimer) {
+    clearInterval(agendaTimer)
+    agendaTimer = null
+  }
+}
+
+ipcMain.handle("agenda:configurar", async (_event, { baseUrl, token }) => {
+  agendaConfig = {
+    baseUrl: (baseUrl || "").replace(/\/+$/, ""),
+    token: token || ""
+  }
+
+  pararAgenda()
+
+  // sem token (logout) o relogio fica desligado
+  if (!agendaConfig.baseUrl || !agendaConfig.token) {
+    return { success: true, ativo: false }
+  }
+
+  agendaTimer = setInterval(verificarAgendamentos, AGENDA_INTERVALO_MS)
+  verificarAgendamentos()
+  return { success: true, ativo: true }
+})
+
 app.whenReady().then(() => {
   app.on("second-instance", () => {
     if (mainWindow) {
@@ -420,10 +555,12 @@ app.whenReady().then(() => {
 })
 
 app.on("before-quit", () => {
+  pararAgenda()
   killCurrentProcess()
 })
 
 app.on("window-all-closed", () => {
+  pararAgenda()
   killCurrentProcess()
   if (process.platform !== "darwin") {
     app.quit()
