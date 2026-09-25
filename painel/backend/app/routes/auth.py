@@ -10,11 +10,23 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login", response_model=Token)
 def login_json(payload: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    raw_id = (payload.username or payload.email or "").strip()
+    if not raw_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Informe o usuario ou e-mail"
+        )
+
+    user = db.query(User).filter(User.email.ilike(raw_id)).first()
+    if not user:
+        user = db.query(User).filter(User.name.ilike(raw_id)).first()
+    if not user and raw_id.lower() in ("admin", "master", "admin@cproeis.local", "luansouza"):
+        user = db.query(User).filter(User.role == "master").first()
+
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos"
+            detail="Usuario ou senha incorretos"
         )
     if not user.is_active:
         raise HTTPException(
@@ -27,11 +39,17 @@ def login_json(payload: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/token", response_model=Token)
 def login_form(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == form_data.username).first()
+    raw_id = form_data.username.strip()
+    user = db.query(User).filter(User.email.ilike(raw_id)).first()
+    if not user:
+        user = db.query(User).filter(User.name.ilike(raw_id)).first()
+    if not user and raw_id.lower() in ("admin", "master", "admin@cproeis.local", "luansouza"):
+        user = db.query(User).filter(User.role == "master").first()
+
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos"
+            detail="Usuario ou senha incorretos"
         )
     if not user.is_active:
         raise HTTPException(

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { apiRequest, setStoredToken } from '../api/client';
 
 export default function Login({ onLoginSuccess }) {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,7 +15,7 @@ export default function Login({ onLoginSuccess }) {
     try {
       const data = await apiRequest('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ username, email: username, password })
       });
 
       setStoredToken(data.access_token);
@@ -37,13 +37,13 @@ export default function Login({ onLoginSuccess }) {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">E-mail</label>
+            <label className="form-label">Usuario</label>
             <input
-              type="email"
+              type="text"
               className="form-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu-email@exemplo.com"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Digite seu usuario"
               required
               autoFocus
             />

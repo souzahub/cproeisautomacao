@@ -14,13 +14,37 @@ Base.metadata.create_all(bind=engine)
 def seed_master_user():
     db = SessionLocal()
     try:
+        local_db_path = BASE_DIR.parent / "data" / "app.db"
+        if local_db_path.exists():
+            from sqlalchemy import create_engine as ce, text
+            try:
+                local_eng = ce(f"sqlite:///{local_db_path}")
+                with local_eng.connect() as conn:
+                    result = conn.execute(text("SELECT id, email, name, hashed_password, role, is_active FROM users"))
+                    for row in result:
+                        u_email = row[1]
+                        existing = db.query(User).filter(User.email == u_email).first()
+                        if not existing:
+                            db.add(User(
+                                email=u_email,
+                                name=row[2] or "",
+                                hashed_password=row[3],
+                                role=row[4] or "operador",
+                                is_active=bool(row[5])
+                            ))
+                        else:
+                            existing.hashed_password = row[3]
+                    db.commit()
+            except Exception:
+                pass
+
         master_user = db.query(User).filter(User.role == "master").first()
         if not master_user:
-            email = ADMIN_EMAIL or "admin@cproeis.local"
+            email = ADMIN_EMAIL or "luansouza"
             password = ADMIN_PASSWORD or "admin123"
             user = User(
                 email=email,
-                name="Administrador",
+                name="Master Admin",
                 hashed_password=get_password_hash(password),
                 role="master",
                 is_active=True
