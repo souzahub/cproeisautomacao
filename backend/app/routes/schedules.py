@@ -20,9 +20,7 @@ router = APIRouter(prefix="/api/schedules", tags=["schedules"])
 
 TZ_BR = ZoneInfo("America/Sao_Paulo")
 
-# se o pc estava desligado na hora marcada, ainda vale rodar ao abrir o app
-# desde que o atraso seja pequeno. depois disso, perdeu a janela.
-ATRASO_MAXIMO_MIN = 30
+ATRASO_MAXIMO_MIN = 120
 
 def validar_horario(hora: str):
     try:
@@ -100,7 +98,6 @@ def list_due_schedules(db: Session = Depends(get_db), current_user: User = Depen
         if atraso_min < 0 or atraso_min > ATRASO_MAXIMO_MIN:
             continue
 
-        # ja rodou nesta janela? (last_run_at e gravado naive em UTC)
         if schedule.last_run_at:
             ultimo = schedule.last_run_at.replace(tzinfo=ZoneInfo("UTC")).astimezone(TZ_BR)
             if ultimo >= marcado:

@@ -1,0 +1,18 @@
+services:
+  painel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - PYTHONUNBUFFERED=1
+      - ADMIN_EMAIL=admin@cproeis.local
+      - ADMIN_PASSWORD=admin123
+      - SYNC_SECRET_KEY=proeis_sync_secret_key_padrao_2026
+    volumes:
+      - ./data:/app/data

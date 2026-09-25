@@ -30,12 +30,36 @@ def run_migrations():
                 conn.execute(text("ALTER TABLE client_profiles ADD COLUMN meta_vagas INTEGER DEFAULT 1"))
             if "preferred_hours" not in columns:
                 conn.execute(text("ALTER TABLE client_profiles ADD COLUMN preferred_hours VARCHAR DEFAULT ''"))
+            if "phone" not in columns:
+                conn.execute(text("ALTER TABLE client_profiles ADD COLUMN phone VARCHAR DEFAULT ''"))
             conn.commit()
 
         if "bot_executions" in inspector.get_table_names():
             columns = [c["name"] for c in inspector.get_columns("bot_executions")]
             if "client_name" not in columns:
                 conn.execute(text("ALTER TABLE bot_executions ADD COLUMN client_name VARCHAR DEFAULT ''"))
+            conn.commit()
+
+        if "schedules" in inspector.get_table_names():
+            columns = [c["name"] for c in inspector.get_columns("schedules")]
+            if "user_id" not in columns:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN user_id INTEGER"))
+            if "client_id" not in columns:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN client_id INTEGER"))
+            if "name" not in columns:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN name VARCHAR DEFAULT ''"))
+            if "hora" not in columns:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN hora VARCHAR DEFAULT '08:00'"))
+            if "dias_semana" not in columns:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN dias_semana VARCHAR DEFAULT '0,1,2,3,4'"))
+            if "mode" not in columns:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN mode VARCHAR DEFAULT 'homologacao'"))
+            if "is_active" not in columns:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+            if "last_run_at" not in columns:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN last_run_at DATETIME"))
+            if "last_result" not in columns:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN last_result VARCHAR DEFAULT ''"))
             conn.commit()
 
 run_migrations()

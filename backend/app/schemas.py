@@ -51,6 +51,7 @@ class ClientProfileCreate(BaseModel):
     convenio: Optional[str] = "HCPM - RAS"
     preferred_events: Optional[str] = ""
     preferred_hours: Optional[str] = ""
+    phone: Optional[str] = ""
     only_listed_events: Optional[bool] = False
     only_titular: Optional[bool] = False
     tipo_data: Optional[str] = "dias_frente"
@@ -74,6 +75,7 @@ class ClientProfileUpdate(BaseModel):
     convenio: Optional[str] = None
     preferred_events: Optional[str] = None
     preferred_hours: Optional[str] = None
+    phone: Optional[str] = None
     only_listed_events: Optional[bool] = None
     only_titular: Optional[bool] = None
     tipo_data: Optional[str] = None
@@ -97,6 +99,7 @@ class ClientProfileResponse(BaseModel):
     convenio: str
     preferred_events: str
     preferred_hours: Optional[str] = ""
+    phone: Optional[str] = ""
     only_listed_events: bool
     only_titular: bool
     tipo_data: str
@@ -204,6 +207,11 @@ class BotSettingsSchema(BaseModel):
     GEMINI_MODEL: Optional[str] = "gemini-3.7-flash"
     GEMINI_API_KEY: Optional[str] = ""
     AI_BASE_URL: Optional[str] = "https://9router.devsouza.online/v1"
+    NOTIFICAR_WHATSAPP: Optional[bool] = False
+    EVOLUTION_API_URL: Optional[str] = ""
+    EVOLUTION_INSTANCE: Optional[str] = ""
+    EVOLUTION_API_KEY: Optional[str] = ""
+    WHATSAPP_NOTIFY_NUMBERS: Optional[str] = ""
 
 class ComprovanteFile(BaseModel):
     name: str

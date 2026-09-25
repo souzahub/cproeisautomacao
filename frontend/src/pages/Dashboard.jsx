@@ -61,6 +61,8 @@ export function Dashboard({ user, onNavigateTab }) {
   const [historyFilterMode, setHistoryFilterMode] = useState("todos")
   const [historySearchQuery, setHistorySearchQuery] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
+  const [sendingWhatsappId, setSendingWhatsappId] = useState(null)
+  const [whatsappFeedback, setWhatsappFeedback] = useState(null)
   const logTerminalRef = useRef(null)
 
   const currentExecutionIdRef = useRef(null)
@@ -123,7 +125,23 @@ export function Dashboard({ user, onNavigateTab }) {
   useEffect(() => {
     async function loadAll() {
       setInitialLoading(true)
-      await Promise.all([fetchClients(), fetchUsers(), fetchStatus(), fetchLogs(), fetchHistory(), fetchSchedules()])
+      try {
+        const [,, statusData] = await Promise.all([
+          fetchClients(),
+          fetchUsers(),
+          botApi.getStatus().catch(() => ({ status: "idle" })),
+          fetchHistory(),
+          fetchSchedules()
+        ])
+        if (statusData) {
+          setStatusInfo(statusData)
+          if (statusData.status === "running" || dashboardTab === "logs") {
+            await fetchLogs()
+          } else {
+            setLogs([])
+          }
+        }
+      } catch {}
       setInitialLoading(false)
     }
     loadAll()
@@ -132,7 +150,6 @@ export function Dashboard({ user, onNavigateTab }) {
       if (!e.detail || e.detail.tab === "dashboard") {
         fetchClients()
         fetchStatus()
-        fetchLogs()
         fetchHistory()
         fetchSchedules()
       }
@@ -361,6 +378,23 @@ export function Dashboard({ user, onNavigateTab }) {
     }
   }
 
+  async function handleSendWhatsapp(item) {
+    setSendingWhatsappId(item.id)
+    setWhatsappFeedback(null)
+    try {
+      const res = await botApi.sendWhatsapp(item.id)
+      if (res && res.success) {
+        setWhatsappFeedback({ type: "success", text: `notificação enviada para ${res.destinatarios?.join(", ") || "destinatários"}` })
+      } else {
+        setWhatsappFeedback({ type: "error", text: res?.message || "falha ao enviar notificação" })
+      }
+    } catch (err) {
+      setWhatsappFeedback({ type: "error", text: err.message || "erro ao conectar com a evolution api" })
+    } finally {
+      setSendingWhatsappId(null)
+    }
+  }
+
   async function handlePrintExecutionSummary(targetExecution = null) {
     try {
       let reportData = null
@@ -486,6 +520,9 @@ export function Dashboard({ user, onNavigateTab }) {
   function handleSetDashboardTab(tab) {
     setDashboardTab(tab)
     localStorage.setItem("cproeis:dashboard_tab", tab)
+    if (tab === "logs" && logs.length === 0) {
+      fetchLogs()
+    }
   }
 
   function handleSelectClient(clientId) {
@@ -721,6 +758,15 @@ export function Dashboard({ user, onNavigateTab }) {
                           <MaskedText text={selectedClient.document} />
                         </span>
                         <StatusBadge status={selectedClient.is_active ? "ativo" : "inativo"} />
+                        {selectedClient.user_id === 1 || selectedClient.name === "Master Admin" ? (
+                          <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "var(--radius-pill)", backgroundColor: "rgba(37, 99, 235, 0.12)", color: "var(--accent)" }}>
+                            perfil master
+                          </span>
+                        ) : selectedClient.system_user ? (
+                          <span style={{ fontSize: "11px", fontWeight: 500, padding: "2px 8px", borderRadius: "var(--radius-pill)", backgroundColor: "var(--bg-surface-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}>
+                            operador: {selectedClient.system_user}
+                          </span>
+                        ) : null}
                       </div>
 
                       {isMaster && (
@@ -1194,6 +1240,20 @@ export function Dashboard({ user, onNavigateTab }) {
           </div>
         )}
 
+        {whatsappFeedback && (
+          <div style={{
+            padding: "8px 12px",
+            marginBottom: "12px",
+            borderRadius: "var(--radius-sm)",
+            fontSize: "12px",
+            backgroundColor: whatsappFeedback.type === "success" ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
+            color: whatsappFeedback.type === "success" ? "var(--color-success, #16a34a)" : "var(--color-destructive, #dc2626)",
+            border: `1px solid ${whatsappFeedback.type === "success" ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}`
+          }}>
+            {whatsappFeedback.text}
+          </div>
+        )}
+
         <div className="table-container">
           <table>
             <thead>
@@ -1205,20 +1265,20 @@ export function Dashboard({ user, onNavigateTab }) {
                 <th>iniciado por</th>
                 <th>início</th>
                 <th>término</th>
-                <th style={{ width: "130px", textAlign: "center" }}>resumo</th>
-                {isMaster && <th style={{ width: "70px", textAlign: "right" }}>ações</th>}
+                <th style={{ width: "210px", textAlign: "center" }}>ações</th>
+                {isMaster && <th style={{ width: "70px", textAlign: "right" }}>excluir</th>}
               </tr>
             </thead>
             <tbody>
               {initialLoading ? (
                 <>
-                  <tr><td colSpan={isMaster ? 8 : 7}><Skeleton variant="row" /></td></tr>
-                  <tr><td colSpan={isMaster ? 8 : 7}><Skeleton variant="row" /></td></tr>
-                  <tr><td colSpan={isMaster ? 8 : 7}><Skeleton variant="row" /></td></tr>
+                  <tr><td colSpan={isMaster ? 9 : 8}><Skeleton variant="row" /></td></tr>
+                  <tr><td colSpan={isMaster ? 9 : 8}><Skeleton variant="row" /></td></tr>
+                  <tr><td colSpan={isMaster ? 9 : 8}><Skeleton variant="row" /></td></tr>
                 </>
               ) : filteredHistory.length === 0 ? (
                 <tr>
-                  <td colSpan={isMaster ? 8 : 7}>
+                  <td colSpan={isMaster ? 9 : 8}>
                     <div className="empty-state">
                       <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="10" />
@@ -1240,20 +1300,33 @@ export function Dashboard({ user, onNavigateTab }) {
                     <td>{item.started_at ? new Date(item.started_at).toLocaleString("pt-BR") : "-"}</td>
                     <td>{item.finished_at ? new Date(item.finished_at).toLocaleString("pt-BR") : "-"}</td>
                     <td style={{ textAlign: "center" }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: "3px 8px", fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                        onClick={() => handlePrintExecutionSummary(item)}
-                        title="imprimir resumo desta execução"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                          <rect x="6" y="14" width="12" height="8"></rect>
-                        </svg>
-                        imprimir resumo
-                      </button>
+                      <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: "3px 8px", fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                          onClick={() => handlePrintExecutionSummary(item)}
+                          title="imprimir resumo desta execução"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                            <rect x="6" y="14" width="12" height="8"></rect>
+                          </svg>
+                          imprimir resumo
+                        </button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          style={{ padding: "3px 8px", fontSize: "11px" }}
+                          onClick={() => handleSendWhatsapp(item)}
+                          disabled={sendingWhatsappId === item.id}
+                          loading={sendingWhatsappId === item.id}
+                          title="enviar comprovante por whatsapp"
+                        >
+                          {sendingWhatsappId === item.id ? "enviando..." : "whatsapp"}
+                        </Button>
+                      </div>
                     </td>
                     {isMaster && (
                       <td style={{ textAlign: "right" }}>
@@ -1343,6 +1416,15 @@ export function Dashboard({ user, onNavigateTab }) {
                         <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{c.name}</span>
                         <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>(<MaskedText text={c.document} />)</span>
                         <StatusBadge status={c.is_active ? "ativo" : "inativo"} />
+                        {c.user_id === 1 || c.name === "Master Admin" ? (
+                          <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: "var(--radius-pill)", backgroundColor: "rgba(37, 99, 235, 0.12)", color: "var(--accent)" }}>
+                            master
+                          </span>
+                        ) : c.system_user ? (
+                          <span style={{ fontSize: "10px", fontWeight: 500, padding: "1px 6px", borderRadius: "var(--radius-pill)", backgroundColor: "var(--bg-surface-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}>
+                            operador: {c.system_user}
+                          </span>
+                        ) : null}
                       </div>
                       {isSelected && (
                         <span style={{ fontSize: "11px", color: "var(--accent)", fontWeight: 600 }}>

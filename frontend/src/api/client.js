@@ -16,17 +16,30 @@ const CACHE_SETTINGS_KEY = "cproeis_cache_settings"
 export function getBaseUrl() {
   if (typeof window !== "undefined") {
     const custom = window.localStorage ? localStorage.getItem("server_url") : null
-    if (custom && custom.trim()) {
+    if (custom && custom.trim() && !custom.includes("cprsautomacao.devsouza.online")) {
       return custom.trim().replace(/\/+$/, "")
     }
 
+    if (window.location && window.location.hostname) {
+      const host = window.location.hostname
+      if (host === "localhost" || host === "127.0.0.1") {
+        if (window.location.port === "5173" || window.location.port === "3000") {
+          return "http://127.0.0.1:8000"
+        }
+        return window.location.origin.replace(/\/+$/, "")
+      }
+      if (window.location.origin && window.location.origin.startsWith("http")) {
+        return window.location.origin.replace(/\/+$/, "")
+      }
+    }
+
     const envUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL)) || ""
-    if (envUrl && envUrl.trim()) {
+    if (envUrl && envUrl.trim() && !envUrl.includes("cprsautomacao.devsouza.online")) {
       return envUrl.trim().replace(/\/+$/, "")
     }
   }
 
-  return "https://cprsautomacao.devsouza.online"
+  return "http://localhost:8000"
 }
 
 function getToken() {
@@ -382,6 +395,12 @@ export const settingsApi = {
       method: "POST",
       body: JSON.stringify({ api_key: apiKey, model, base_url: baseUrl })
     })
+  },
+  testWhatsapp: async (data) => {
+    return apiRequest("/api/settings/test-whatsapp", {
+      method: "POST",
+      body: JSON.stringify(data)
+    })
   }
 }
 
@@ -564,6 +583,11 @@ export const botApi = {
     setLocalCache("cproeis_cache_history", cached.filter(h => h.id !== id))
     return { success: true }
   },
+  sendWhatsapp: async (id) => {
+    return apiRequest(`/api/bot/history/${id}/send-whatsapp`, {
+      method: "POST"
+    })
+  },
   solveCaptcha: async (imageB64) => {
     return apiRequest("/api/bot/solve-captcha", {
       method: "POST",
@@ -598,6 +622,21 @@ export const comprovantesApi = {
     combined.sort((a, b) => (a.modified_at < b.modified_at ? 1 : -1))
     return combined
   },
+  delete: async (filename) => {
+    if (typeof window !== "undefined" && window.electronAPI && window.electronAPI.deleteComprovante) {
+      try {
+        await window.electronAPI.deleteComprovante(filename)
+      } catch {}
+    }
+    return apiRequest(`/api/comprovantes/${encodeURIComponent(filename)}`, {
+      method: "DELETE"
+    })
+  },
+  deleteAll: async () => {
+    return apiRequest("/api/comprovantes", {
+      method: "DELETE"
+    })
+  },
   getVagasReport: async (params = {}) => {
     try {
       const query = new URLSearchParams()
@@ -610,5 +649,11 @@ export const comprovantesApi = {
     } catch {
       return getLocalCache("cproeis_cache_vagas_report", [])
     }
+  },
+  sendWhatsapp: async (filename) => {
+    return apiRequest(`/api/comprovantes/${encodeURIComponent(filename)}/send-whatsapp`, {
+      method: "POST"
+    })
   }
 }
+

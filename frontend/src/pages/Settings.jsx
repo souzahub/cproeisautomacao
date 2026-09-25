@@ -26,7 +26,12 @@ export function Settings() {
     MODO_HOMOLOGACAO: true,
     GEMINI_MODEL: "antigravity99",
     GEMINI_API_KEY: "",
-    AI_BASE_URL: "https://9router.devsouza.online/v1"
+    AI_BASE_URL: "https://9router.devsouza.online/v1",
+    NOTIFICAR_WHATSAPP: false,
+    EVOLUTION_API_URL: "",
+    EVOLUTION_INSTANCE: "",
+    EVOLUTION_API_KEY: "",
+    WHATSAPP_NOTIFY_NUMBERS: ""
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -59,6 +64,8 @@ export function Settings() {
 
   const [testingAi, setTestingAi] = useState(false)
   const [aiTestResult, setAiTestResult] = useState(null)
+  const [testingWhatsapp, setTestingWhatsapp] = useState(false)
+  const [whatsappTestResult, setWhatsappTestResult] = useState(null)
 
   useEffect(() => {
     function updateQueue() {
@@ -160,6 +167,40 @@ export function Settings() {
     }
   }
 
+  async function handleTestWhatsapp() {
+    setTestingWhatsapp(true)
+    setWhatsappTestResult(null)
+    try {
+      const url = (formData.EVOLUTION_API_URL || "").trim()
+      const instance = (formData.EVOLUTION_INSTANCE || "").trim()
+      const apiKey = (formData.EVOLUTION_API_KEY || "").trim()
+      const numbers = (formData.WHATSAPP_NOTIFY_NUMBERS || "").trim()
+
+      if (!url || !instance || !apiKey) {
+        setWhatsappTestResult({
+          success: false,
+          message: "preencha a url, nome da instância e chave da evolution api antes de testar"
+        })
+        return
+      }
+
+      const res = await settingsApi.testWhatsapp({
+        url,
+        instance,
+        api_key: apiKey,
+        numbers
+      })
+      setWhatsappTestResult(res)
+    } catch (err) {
+      setWhatsappTestResult({
+        success: false,
+        message: err.message || "falha ao conectar na evolution api"
+      })
+    } finally {
+      setTestingWhatsapp(false)
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setSaving(true)
@@ -207,7 +248,7 @@ export function Settings() {
               className="form-input"
               value={serverUrl}
               onChange={(e) => setServerUrl(e.target.value)}
-              placeholder="https://cprsautomacao.devsouza.online"
+              placeholder="http://localhost:8000"
             />
           </div>
 
@@ -639,6 +680,129 @@ export function Settings() {
                   />
                   <span className="form-label" style={{ cursor: "pointer" }}>abrir janela visível do navegador (modo local)</span>
                 </label>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="card" style={{ marginBottom: "20px" }}>
+          <div className="card-header">
+            <div>
+              <h3 className="card-title">notificações whatsapp (evolution api)</h3>
+              <p className="card-desc">envio automático de alertas e comprovantes em pdf para um ou múltiplos números com proteção anti-ban</p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div><Skeleton variant="text" count={3} height="36px" /></div>
+          ) : (
+            <>
+              <div style={{ marginBottom: "16px" }}>
+                <label className="form-checkbox-group" style={{ marginBottom: 0 }}>
+                  <input
+                    type="checkbox"
+                    className="form-checkbox"
+                    checked={formData.NOTIFICAR_WHATSAPP}
+                    onChange={(e) => handleChange("NOTIFICAR_WHATSAPP", e.target.checked)}
+                    disabled={saving}
+                  />
+                  <span className="form-label" style={{ cursor: "pointer", fontWeight: 600 }}>
+                    ativar notificações e envio de comprovante por whatsapp
+                  </span>
+                </label>
+              </div>
+
+              <div className="grid-cols-2" style={{ marginBottom: "12px" }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <label className="form-label" htmlFor="wpp_url" style={{ marginBottom: 0 }}>endereço da evolution api</label>
+                    <InfoTooltip
+                      title="endereço da api"
+                      text="url base onde a sua evolution api está hospedada."
+                      example="ex: https://evolution.seudominio.com ou http://localhost:8080"
+                    />
+                  </div>
+                  <input
+                    id="wpp_url"
+                    className="form-input"
+                    style={{ marginTop: "4px" }}
+                    value={formData.EVOLUTION_API_URL || ""}
+                    onChange={(e) => handleChange("EVOLUTION_API_URL", e.target.value)}
+                    placeholder="https://evolution.seudominio.com"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <label className="form-label" htmlFor="wpp_instance" style={{ marginBottom: 0 }}>nome da instância</label>
+                    <InfoTooltip
+                      title="nome da instância"
+                      text="identificador da instância criada no painel da evolution api."
+                    />
+                  </div>
+                  <input
+                    id="wpp_instance"
+                    className="form-input"
+                    style={{ marginTop: "4px" }}
+                    value={formData.EVOLUTION_INSTANCE || ""}
+                    onChange={(e) => handleChange("EVOLUTION_INSTANCE", e.target.value)}
+                    placeholder="minha-instancia"
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              <div className="grid-cols-2" style={{ marginBottom: "16px" }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" htmlFor="wpp_apikey">chave de api (apikey global ou da instância)</label>
+                  <PasswordInput
+                    id="wpp_apikey"
+                    value={formData.EVOLUTION_API_KEY || ""}
+                    onChange={(e) => handleChange("EVOLUTION_API_KEY", e.target.value)}
+                    placeholder="chave de acesso apikey"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <label className="form-label" htmlFor="wpp_numbers" style={{ marginBottom: 0 }}>
+                      números para alertas globais (separados por vírgula)
+                    </label>
+                    <InfoTooltip
+                      title="múltiplos números"
+                      text="destinatários que receberão avisos e comprovantes. O sistema aplica intervalo de 5 segundos entre cada envio para proteção da conta."
+                      example="21999999999, 21988888888, 5521977777777"
+                    />
+                  </div>
+                  <input
+                    id="wpp_numbers"
+                    className="form-input"
+                    style={{ marginTop: "4px" }}
+                    value={formData.WHATSAPP_NOTIFY_NUMBERS || ""}
+                    onChange={(e) => handleChange("WHATSAPP_NOTIFY_NUMBERS", e.target.value)}
+                    placeholder="21999999999, 21988888888"
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestWhatsapp}
+                  disabled={testingWhatsapp || saving}
+                >
+                  {testingWhatsapp ? "testando conexão..." : "testar conexão whatsapp"}
+                </Button>
+                {whatsappTestResult && (
+                  <span style={{ fontSize: "12px", color: whatsappTestResult.success ? "var(--color-success, #16a34a)" : "var(--color-destructive, #dc2626)" }}>
+                    {whatsappTestResult.message}
+                  </span>
+                )}
               </div>
             </>
           )}

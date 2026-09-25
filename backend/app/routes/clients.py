@@ -67,6 +67,7 @@ def create_client(client_in: ClientProfileCreate, db: Session = Depends(get_db),
         convenio=client_in.convenio or "HCPM - RAS",
         preferred_events=client_in.preferred_events or "",
         preferred_hours=client_in.preferred_hours or "",
+        phone=client_in.phone or "",
         only_listed_events=bool(client_in.only_listed_events),
         only_titular=bool(client_in.only_titular),
         tipo_data=client_in.tipo_data or "dias_frente",
@@ -146,6 +147,8 @@ def update_client(client_id: int, client_in: ClientProfileUpdate, db: Session = 
         client.preferred_events = client_in.preferred_events
     if client_in.preferred_hours is not None:
         client.preferred_hours = client_in.preferred_hours
+    if client_in.phone is not None:
+        client.phone = client_in.phone
     if client_in.only_listed_events is not None:
         client.only_listed_events = client_in.only_listed_events
     if client_in.only_titular is not None:

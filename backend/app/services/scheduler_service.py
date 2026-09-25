@@ -19,10 +19,8 @@ class SchedulerService:
         self.scheduler: Optional[BackgroundScheduler] = None
 
     def start(self):
-        # permite desligar o agendador (ex: servidor com varios workers,
-        # senao cada worker dispararia o mesmo agendamento)
-        if os.getenv("SCHEDULER_ENABLED", "true").lower() in ("false", "0", "no"):
-            print("[scheduler] desativado por SCHEDULER_ENABLED")
+        if os.getenv("SCHEDULER_ENABLED", "false").lower() not in ("true", "1", "yes"):
+            print("[scheduler] agendador interno inativo no servidor (execucao delegada para desktop local)")
             return
 
         if self.scheduler:
@@ -118,7 +116,6 @@ def _executar_agendamento(schedule_id: int):
     finally:
         db.close()
 
-    # nunca interrompe uma execucao em andamento: apenas registra e sai
     status_atual = bot_runner.get_status().get("status")
     if status_atual == "running":
         _registrar_resultado(schedule_id, "pulado: bot ja em execucao")

@@ -2,17 +2,40 @@ import React, { useState, useEffect, useMemo } from "react"
 import { comprovantesApi, getBaseUrl } from "../api/client"
 import { Skeleton } from "../components/Skeleton"
 import { Button } from "../components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "../components/ui/alert-dialog"
 
-export function Comprovantes() {
-  const [activeTab, setActiveTab] = useState("vagas") // "vagas" | "arquivos"
+export function Comprovantes({ user }) {
+  const [activeTab, setActiveTab] = useState("vagas")
   const [vagas, setVagas] = useState([])
   const [comprovantes, setComprovantes] = useState([])
   const [loading, setLoading] = useState(true)
   const [downloadingFile, setDownloadingFile] = useState("")
+  const [deletingFile, setDeletingFile] = useState("")
+  const [fileToDelete, setFileToDelete] = useState(null)
+  const [sendingWhatsappFile, setSendingWhatsappFile] = useState("")
+  const [whatsappFeedback, setWhatsappFeedback] = useState(null)
   const [errorMsg, setErrorMsg] = useState("")
-  const [selectedExecution, setSelectedExecution] = useState("latest") // "latest" | "all" | execution_id
+  const [selectedExecution, setSelectedExecution] = useState("latest")
   const [searchTerm, setSearchTerm] = useState("")
-  const [filterTipo, setFilterTipo] = useState("todos") // "todos" | "titular" | "reserva"
+  const [filterTipo, setFilterTipo] = useState("todos")
+
+  const isMaster = user?.role === "master" || (() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("auth_user") || "{}")
+      return stored?.role === "master"
+    } catch {
+      return false
+    }
+  })()
 
   async function loadData() {
     setLoading(true)
@@ -38,7 +61,6 @@ export function Comprovantes() {
     loadData()
   }, [])
 
-  // Lista única de execuções para o seletor
   const executionSessions = useMemo(() => {
     const list = Array.isArray(vagas) ? vagas : []
     const map = new Map()
@@ -59,10 +81,8 @@ export function Comprovantes() {
     return Array.from(map.values())
   }, [vagas])
 
-  // Identificar a execução mais recente
   const latestExecutionId = executionSessions.length > 0 ? executionSessions[0].id : null
 
-  // Filtragem de vagas vinculada à execução selecionada
   const filteredVagas = useMemo(() => {
     let list = Array.isArray(vagas) ? vagas : []
 
@@ -140,7 +160,48 @@ export function Comprovantes() {
     }
   }
 
-  // Exportar para Excel (.CSV formatado com UTF-8 BOM e delimitador ;)
+  async function handleConfirmDelete() {
+    if (!fileToDelete) return
+    const targetName = fileToDelete.name
+    setFileToDelete(null)
+    setDeletingFile(targetName)
+    setErrorMsg("")
+    try {
+      await comprovantesApi.delete(targetName)
+      setComprovantes((prev) => prev.filter((f) => f.name !== targetName))
+    } catch (err) {
+      setErrorMsg(err.message || "falha ao remover comprovante")
+    } finally {
+      setDeletingFile("")
+    }
+  }
+
+  async function handleSendWhatsapp(item) {
+    setSendingWhatsappFile(item.name)
+    setWhatsappFeedback(null)
+    try {
+      const res = await comprovantesApi.sendWhatsapp(item.name)
+      if (res && res.success) {
+        setWhatsappFeedback({
+          type: "success",
+          text: `notificação enviada para ${res.destinatarios?.join(", ") || "destinatários"}`
+        })
+      } else {
+        setWhatsappFeedback({
+          type: "error",
+          text: res?.message || "falha ao enviar notificação"
+        })
+      }
+    } catch (err) {
+      setWhatsappFeedback({
+        type: "error",
+        text: err.message || "erro ao conectar com a evolution api"
+      })
+    } finally {
+      setSendingWhatsappFile("")
+    }
+  }
+
   function exportToExcel() {
     if (filteredVagas.length === 0) return
     const headers = [
@@ -179,7 +240,6 @@ export function Comprovantes() {
     URL.revokeObjectURL(url)
   }
 
-  // Gerar e Imprimir Relatório Formal (PDF executivo)
   function printVagasReport() {
     const printWindow = window.open("", "_blank")
     if (!printWindow) {
@@ -399,7 +459,6 @@ export function Comprovantes() {
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {errorMsg && <div className="alert-error">{errorMsg}</div>}
 
-      {/* Top Header com Botões de Ação */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h2 style={{ fontSize: "20px", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
@@ -456,7 +515,6 @@ export function Comprovantes() {
         </div>
       </div>
 
-      {/* Abas Principais */}
       <div className="form-tabs-bar" style={{ maxWidth: "420px", marginBottom: 0 }}>
         <button
           type="button"
@@ -475,15 +533,10 @@ export function Comprovantes() {
         </button>
       </div>
 
-      {/* ABA 1: VAGAS CADASTRADAS POR SESSÃO DE BUSCA */}
       {activeTab === "vagas" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          
-          {/* Seletor de Sessão / Busca e Filtros */}
           <div className="card" style={{ padding: "14px 18px", marginBottom: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-              
-              {/* Seletor de Execução */}
               <div style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: "4px" }}>
                 <span className="form-label" style={{ fontWeight: 700, marginBottom: 0, fontSize: "11px", textTransform: "uppercase" }}>
                   selecionar sessão de busca:
@@ -508,7 +561,6 @@ export function Comprovantes() {
                 </select>
               </div>
 
-              {/* Filtro por Situação (Todos / Titular / Reserva) */}
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 <span className="form-label" style={{ fontWeight: 700, marginBottom: 0, fontSize: "11px", textTransform: "uppercase" }}>
                   situação da vaga:
@@ -540,7 +592,6 @@ export function Comprovantes() {
             </div>
           </div>
 
-          {/* Cards de Métricas da Busca Selecionada */}
           <div className="grid-cols-3">
             <div className="card" style={{ padding: "14px 18px", marginBottom: 0 }}>
               <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)" }}>
@@ -570,7 +621,6 @@ export function Comprovantes() {
             </div>
           </div>
 
-          {/* Tabela de Vagas da Busca */}
           <div className="card" style={{ marginBottom: 0 }}>
             <div className="table-container">
               <table>
@@ -603,7 +653,7 @@ export function Comprovantes() {
                             <line x1="16" y1="13" x2="8" y2="13" />
                             <line x1="16" y1="17" x2="8" y2="17" />
                           </svg>
-                          <span className="empty-state-title">nenhuma vaga encontrada para esta sessão</span>
+                          <span className="empty-state-title">nenhum vaga encontrada para esta sessão</span>
                           <span className="empty-state-desc">
                             as vagas agendadas pelo robô ou confirmadas aparecerão automaticamente aqui
                           </span>
@@ -672,7 +722,6 @@ export function Comprovantes() {
         </div>
       )}
 
-      {/* ABA 2: ARQUIVOS DE COMPROVANTE SALVOS */}
       {activeTab === "arquivos" && (
         <div className="card" style={{ marginBottom: 0 }}>
           <div className="card-header">
@@ -681,6 +730,20 @@ export function Comprovantes() {
               <p className="card-desc">documentos oficiais em PDF gerados automaticamente após cada agendamento</p>
             </div>
           </div>
+
+          {whatsappFeedback && (
+            <div style={{
+              padding: "8px 12px",
+              margin: "0 18px 12px 18px",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "12px",
+              backgroundColor: whatsappFeedback.type === "success" ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
+              color: whatsappFeedback.type === "success" ? "var(--color-success, #16a34a)" : "var(--color-destructive, #dc2626)",
+              border: `1px solid ${whatsappFeedback.type === "success" ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}`
+            }}>
+              {whatsappFeedback.text}
+            </div>
+          )}
 
           <div className="table-container">
             <table>
@@ -721,15 +784,40 @@ export function Comprovantes() {
                       <td>{formatBytes(item.size_bytes)}</td>
                       <td>{item.modified_at}</td>
                       <td>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleOpenOrDownload(item)}
-                          disabled={downloadingFile === item.name}
-                          loading={downloadingFile === item.name}
-                        >
-                          {item.is_local ? "abrir PDF" : "baixar PDF"}
-                        </Button>
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleOpenOrDownload(item)}
+                            disabled={downloadingFile === item.name || deletingFile === item.name || sendingWhatsappFile === item.name}
+                            loading={downloadingFile === item.name}
+                          >
+                            {item.is_local ? "abrir PDF" : "baixar PDF"}
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSendWhatsapp(item)}
+                            disabled={sendingWhatsappFile === item.name || deletingFile === item.name || downloadingFile === item.name}
+                            loading={sendingWhatsappFile === item.name}
+                            title="enviar comprovante por whatsapp"
+                          >
+                            whatsapp
+                          </Button>
+
+                          {isMaster && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setFileToDelete(item)}
+                              disabled={deletingFile === item.name || sendingWhatsappFile === item.name || downloadingFile === item.name}
+                              loading={deletingFile === item.name}
+                            >
+                              remover
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -739,6 +827,25 @@ export function Comprovantes() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && setFileToDelete(null)}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>remover comprovante</AlertDialogTitle>
+            <AlertDialogDescription>
+              deseja remover o arquivo {fileToDelete?.name}? esta ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setFileToDelete(null)}>
+              cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction variant="danger" onClick={handleConfirmDelete}>
+              confirmar remoção
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

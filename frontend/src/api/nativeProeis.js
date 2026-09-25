@@ -720,13 +720,13 @@ export async function runAutomationDirectNative(mode, clientData, settings, emit
   }
 
   const targetUrl = loginRes.baseUrl
-  const escalaUrl = `${targetUrl}/FrmEscalaAssociar.aspx`
+  const escalaUrl = `${targetUrl}/FrmMenuVoluntario.aspx`
 
   emitLog("Acessando painel de inscrição de vagas...")
   const escalaResp = await httpGet(escalaUrl)
   const escalaHtml = typeof escalaResp.data === "string" ? escalaResp.data : ""
 
-  if (escalaHtml.includes("FrmEscalaAssociar") || escalaResp.status === 200) {
+  if (escalaHtml.includes("FrmMenuVoluntario") || escalaResp.status === 200) {
     emitLog("Painel de escalas pronto. Verificando vagas disponíveis...")
     if (mode === "homologacao") {
       emitLog("Modo homologação ativo: simulando busca e inscrição com proteção...")

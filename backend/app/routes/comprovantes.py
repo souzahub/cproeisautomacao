@@ -1,12 +1,13 @@
 import os
+import re
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from ..config import COMPROVANTES_DIR
 from ..database import get_db
-from ..models import User
+from ..models import User, BotExecution, ClientProfile
 from ..schemas import ComprovanteFile
 from ..security import get_current_user, verify_token_string
 
@@ -29,7 +30,20 @@ def list_comprovantes(current_user: User = Depends(get_current_user)):
     files.sort(key=lambda x: x["modified_at"], reverse=True)
     return files
 
-from fastapi import UploadFile, File
+@router.delete("")
+def delete_all_comprovantes(current_user: User = Depends(get_current_user)):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Apenas administradores master podem remover comprovantes.")
+    removed_count = 0
+    if COMPROVANTES_DIR.exists():
+        for entry in os.scandir(COMPROVANTES_DIR):
+            if entry.is_file() and entry.name.lower().endswith(".pdf"):
+                try:
+                    os.unlink(entry.path)
+                    removed_count += 1
+                except Exception:
+                    pass
+    return {"message": f"{removed_count} comprovantes removidos."}
 
 @router.post("/upload", response_model=ComprovanteFile)
 async def upload_comprovante(
@@ -56,9 +70,6 @@ async def upload_comprovante(
         "download_url": f"/api/comprovantes/{clean_name}"
     }
 
-import re
-from ..models import BotExecution, ClientProfile
-
 @router.get("/vagas-report")
 def get_vagas_report(
     client_name: Optional[str] = Query(None),
@@ -84,8 +95,7 @@ def get_vagas_report(
         lines = logs.split("\n")
         data_exec_str = exc.started_at.strftime("%d/%m/%Y às %H:%M") if exc.started_at else "-"
         exec_label = f"Execução #{exc.id} • {data_exec_str} ({exc.client_name or 'Padrão'})"
-        
-        # 1. Parse de blocos de 'Meus Eventos'
+
         if "====" in logs:
             blocos = logs.split("====")
             for bloco in blocos:
@@ -98,7 +108,7 @@ def get_vagas_report(
                     if ":" in clean_l:
                         k, v = clean_l.split(":", 1)
                         dados[k.strip().lower()] = v.strip()
-                
+
                 if "evento" in dados or "convênio" in dados or "convenio" in dados:
                     tipo_v = dados.get("tipo de vaga", dados.get("tipo", "Titular"))
                     data_ev = dados.get("data e hora", dados.get("data/hora", dados.get("data", "-")))
@@ -120,7 +130,6 @@ def get_vagas_report(
                     })
                     item_id += 1
 
-        # 2. Parse de linhas de inscricao confirmada / homologacao
         current_data = ""
         for line in lines:
             m_data = re.search(r"Data:\s*(\d{2}/\d{2}/\d{4})", line)
@@ -128,7 +137,6 @@ def get_vagas_report(
                 current_data = m_data.group(1)
 
             if "Inscricao confirmada" in line or "Inscrição confirmada" in line or "[HOMOLOGACAO] Vaga compativel" in line:
-                # Remove timestamp prefix [HH:MM:SS]
                 clean_line = re.sub(r"^\[\d{2}:\d{2}:\d{2}\]\s*", "", line)
                 if "identificada:" in clean_line:
                     nome_ev = clean_line.split("identificada:", 1)[1].strip()
@@ -141,7 +149,7 @@ def get_vagas_report(
                     nome_ev = parts[1].strip() if len(parts) > 1 else clean_line.strip()
 
                 is_homolog = "[HOMOLOGACAO]" in line
-                
+
                 ja_existe = any(
                     v["execution_id"] == exc.id and v["evento"] == nome_ev and (v["data_evento"] == current_data or current_data in v["data_evento"])
                     for v in vagas_list
@@ -165,7 +173,6 @@ def get_vagas_report(
                     })
                     item_id += 1
 
-    # Monta lista de execuções únicas para o seletor
     seen_execs = {}
     for exc in executions:
         if exc.id not in seen_execs:
@@ -192,6 +199,27 @@ def get_vagas_report(
             "reserva": total_reserva
         }
     }
+
+@router.delete("/{filename}")
+def delete_comprovante(
+    filename: str,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Apenas administradores master podem remover comprovantes.")
+
+    clean_name = os.path.basename(filename)
+    file_path = (COMPROVANTES_DIR / clean_name).resolve()
+
+    if COMPROVANTES_DIR.resolve() not in file_path.parents or not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Arquivo nao encontrado.")
+
+    try:
+        file_path.unlink()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Nao foi possivel remover o arquivo: {str(e)}")
+
+    return {"message": "Comprovante removido."}
 
 @router.get("/{filename}")
 def download_comprovante(
@@ -222,3 +250,106 @@ def download_comprovante(
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
 
+@router.post("/{filename}/send-whatsapp")
+def send_comprovante_whatsapp(
+    filename: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from ..services.whatsapp import (
+        disparar_notificacoes_whatsapp,
+        extrair_lista_numeros,
+        parse_vagas_from_text,
+        formatar_resumo_vagas_wpp
+    )
+
+    clean_name = os.path.basename(filename)
+    file_path = (COMPROVANTES_DIR / clean_name).resolve()
+
+    if COMPROVANTES_DIR.resolve() not in file_path.parents or not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Arquivo nao encontrado.")
+
+    from .settings import read_env_file
+    env_data = read_env_file()
+
+    api_url = (os.getenv("EVOLUTION_API_URL") or env_data.get("EVOLUTION_API_URL") or "").strip()
+    instance = (os.getenv("EVOLUTION_INSTANCE") or env_data.get("EVOLUTION_INSTANCE") or "").strip()
+    api_key = (os.getenv("EVOLUTION_API_KEY") or env_data.get("EVOLUTION_API_KEY") or "").strip()
+    configured_numbers = (os.getenv("WHATSAPP_NOTIFY_NUMBERS") or env_data.get("WHATSAPP_NOTIFY_NUMBERS") or "").strip()
+
+    if not api_url or not instance or not api_key:
+        raise HTTPException(status_code=400, detail="Evolution API nao configurada nas configuracoes do sistema.")
+
+    destinatarios = []
+    if configured_numbers:
+        destinatarios.extend(extrair_lista_numeros(configured_numbers))
+
+    doc_match = re.search(r"comprovante_(\d+)\.pdf", clean_name)
+    doc_digits = doc_match.group(1) if doc_match else ""
+
+    client = None
+    if doc_digits:
+        all_clients = db.query(ClientProfile).all()
+        for c in all_clients:
+            if c.document:
+                c_clean = re.sub(r"\D", "", c.document)
+                if c_clean == doc_digits:
+                    client = c
+                    break
+
+    if not client and current_user.role != "master":
+        client = db.query(ClientProfile).filter(ClientProfile.user_id == current_user.id).first()
+
+    if client and client.phone:
+        for n in extrair_lista_numeros(client.phone):
+            if n not in destinatarios:
+                destinatarios.append(n)
+
+    if not destinatarios:
+        raise HTTPException(status_code=400, detail="Nenhum numero de telefone valido encontrado para envio.")
+
+    nome_cli = client.name if client else "Cliente"
+    data_hora_str = datetime.now().strftime("%d/%m/%Y às %H:%M")
+
+    vagas_formatadas = ""
+    latest_exec = None
+    if client:
+        latest_exec = db.query(BotExecution).filter(
+            (BotExecution.client_name == client.name) | (BotExecution.triggered_by == current_user.email)
+        ).order_by(BotExecution.id.desc()).first()
+    else:
+        latest_exec = db.query(BotExecution).order_by(BotExecution.id.desc()).first()
+
+    if latest_exec and latest_exec.logs:
+        vagas = parse_vagas_from_text(latest_exec.logs)
+        if vagas:
+            vagas_formatadas = formatar_resumo_vagas_wpp(vagas)
+
+    corpo_vagas = f"\n\n{vagas_formatadas}" if vagas_formatadas else ""
+
+    texto = (
+        f"📋 *CPROEIS - Comprovante de Agendamento*\n\n"
+        f"👤 *Cliente:* {nome_cli}\n"
+        f"🕒 *Horário:* {data_hora_str}"
+        f"{corpo_vagas}\n\n"
+        f"📄 Comprovante oficial em anexo."
+    )
+
+    res = disparar_notificacoes_whatsapp(
+        numeros_raw=",".join(destinatarios),
+        texto=texto,
+        caminho_pdf=str(file_path),
+        legenda="Comprovante Oficial CPROEIS",
+        api_url=api_url,
+        instance=instance,
+        api_key=api_key
+    )
+
+    return {
+        "success": res.get("success", False),
+        "message": res.get("message", "envio processado"),
+        "total_enviados": res.get("total_enviados", 0),
+        "total_falhas": res.get("total_falhas", 0),
+        "destinatarios": destinatarios,
+        "tem_pdf": True
+    }

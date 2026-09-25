@@ -29,6 +29,11 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             detail="Conta desativada."
         )
     token = create_access_token({"sub": user.email, "user_id": user.id, "role": user.role})
+    try:
+        from ..services.sync_service import trigger_background_sync
+        trigger_background_sync()
+    except Exception:
+        pass
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -53,6 +58,11 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             detail="Conta desativada."
         )
     token = create_access_token({"sub": user.email, "user_id": user.id, "role": user.role})
+    try:
+        from ..services.sync_service import trigger_background_sync
+        trigger_background_sync()
+    except Exception:
+        pass
     return {
         "access_token": token,
         "token_type": "bearer",

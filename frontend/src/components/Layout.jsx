@@ -151,7 +151,7 @@ export function Layout({ user, onLogout, theme, onToggleTheme }) {
             {currentTab === "clients" && <Clients />}
             {currentTab === "settings" && <Settings />}
             {currentTab === "users" && <Users currentUser={user} />}
-            {currentTab === "comprovantes" && <Comprovantes />}
+            {currentTab === "comprovantes" && <Comprovantes user={user} />}
             {currentTab === "schedules" && <Schedules />}
           </main>
         </PullToRefresh>

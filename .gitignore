@@ -11,11 +11,18 @@ venv/
 env/
 .venv/
 
-frontend/node_modules/
-frontend/dist/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+dist_standalone/
 
 data/*.db
 data/*.sqlite3
+painel/data/
+**/data/*.db
+Banco_/
+*.db
 comprovantes/*.pdf
 teste_comprovante.pdf
 
@@ -32,3 +39,5 @@ test_captcha.png
 **/build/
 *.iml
 .idea/
+logs/
+

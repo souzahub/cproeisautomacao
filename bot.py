@@ -49,6 +49,12 @@ def carregar_configuracao():
     
     proxy = os.getenv("PROXY_SERVER", os.getenv("HTTP_PROXY", "")).strip()
     ai_base_url = os.getenv("AI_BASE_URL", "").strip()
+    notificar_whatsapp = os.getenv("NOTIFICAR_WHATSAPP", "false").lower() == "true"
+    evolution_api_url = os.getenv("EVOLUTION_API_URL", "").strip()
+    evolution_instance = os.getenv("EVOLUTION_INSTANCE", "").strip()
+    evolution_api_key = os.getenv("EVOLUTION_API_KEY", "").strip()
+    whatsapp_notify_numbers = os.getenv("WHATSAPP_NOTIFY_NUMBERS", "").strip()
+    cliente_telefone = os.getenv("CLIENTE_TELEFONE", os.getenv("TELEFONE", "")).strip()
     
     return {
         "url": url,
@@ -73,7 +79,13 @@ def carregar_configuracao():
         "gemini_api_key": gemini_key,
         "gemini_model": gemini_model,
         "ai_base_url": ai_base_url,
-        "proxy": proxy
+        "proxy": proxy,
+        "notificar_whatsapp": notificar_whatsapp,
+        "evolution_api_url": evolution_api_url,
+        "evolution_instance": evolution_instance,
+        "evolution_api_key": evolution_api_key,
+        "whatsapp_notify_numbers": whatsapp_notify_numbers,
+        "cliente_telefone": cliente_telefone
     }
 
 def resolver_captcha_gemini(img_bytes, api_key, modelo_preferido, ai_base_url=""):
@@ -476,14 +488,20 @@ def realizar_login(page, ocr, cfg):
     max_login = max(1, int(cfg.get("tentativas_maximas", 10)))
     for tentativa in range(1, max_login + 1):
         print(f"\nTentativa de login {tentativa}/{max_login}...")
-        garantir_formulario_login(page, tipo_doc)
-        time.sleep(1)
+        pronto = garantir_formulario_login(page, tipo_doc)
+        if not pronto or not page.query_selector("#txtLogin"):
+            print("Formulario de login nao visivel. Recarregando pagina do portal...")
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=15000)
+                garantir_formulario_login(page, tipo_doc)
+            except Exception:
+                pass
 
         try:
-            page.fill("#txtLogin", cfg.get("documento", ""))
-            page.fill("#txtSenha", cfg.get("senha", ""))
+            page.fill("#txtLogin", cfg.get("documento", ""), timeout=5000)
+            page.fill("#txtSenha", cfg.get("senha", ""), timeout=5000)
             try:
-                page.fill("#TextCaptcha", "")
+                page.fill("#TextCaptcha", "", timeout=2000)
             except Exception:
                 pass
         except Exception as e:
@@ -554,23 +572,74 @@ def realizar_login(page, ocr, cfg):
 
 def navegar_para_inscricao(page):
     print("Navegando para o modulo de inscricao...")
-    botao_escala = page.query_selector("a:has-text('Escala'), input[value*='Escala'], button:has-text('Escala')")
-    if botao_escala:
-        botao_escala.click()
-    else:
-        page.goto("https://www.proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="networkidle")
-    
-    page.wait_for_load_state("networkidle")
-    time.sleep(1)
-    
-    botao_nova = page.query_selector("a:has-text('Nova Inscrição'), input[value*='Nova Inscrição'], button:has-text('Nova Inscrição'), a:has-text('Nova Inscricao')")
-    if botao_nova:
-        botao_nova.click()
-    else:
-        page.goto("https://www.proeis.rj.gov.br/FrmEscalaAssociar.aspx", wait_until="networkidle")
-        
-    page.wait_for_load_state("networkidle")
-    time.sleep(1)
+    try:
+        select_existente = page.query_selector("#ddlConvenios, select[name*='Convenio'], #ddlDataEvento")
+        if select_existente and select_existente.is_visible():
+            return
+    except Exception:
+        pass
+
+    if "FrmEscalaAssociar" in page.url or "Server Error" in page.title() or "404" in page.title():
+        try:
+            page.go_back(timeout=5000)
+            page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
+        if "FrmMenuVoluntario.aspx" not in page.url:
+            try:
+                page.goto("https://www.proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="domcontentloaded", timeout=20000)
+                page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
+
+    try:
+        btn_nova = page.query_selector("a:has-text('Nova Inscrição'), input[value*='Nova Inscrição'], button:has-text('Nova Inscrição'), a:has-text('Nova Inscricao'), #btnNovaInscricao")
+        if btn_nova and btn_nova.is_visible():
+            btn_nova.click()
+            try:
+                page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
+            time.sleep(1.5)
+            return
+    except Exception:
+        pass
+
+    try:
+        botao_escala = page.query_selector("#btnEscala, a:has-text('Escala'), input[value*='Escala'], button:has-text('Escala')")
+        if not botao_escala or not botao_escala.is_visible():
+            if "FrmMenuVoluntario.aspx" not in page.url:
+                page.goto("https://www.proeis.rj.gov.br/FrmMenuVoluntario.aspx", wait_until="domcontentloaded", timeout=20000)
+                try:
+                    page.wait_for_load_state("networkidle", timeout=15000)
+                except Exception:
+                    pass
+            botao_escala = page.query_selector("#btnEscala, a:has-text('Escala'), input[value*='Escala'], button:has-text('Escala')")
+
+        if botao_escala:
+            botao_escala.click()
+            try:
+                page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
+            time.sleep(1.5)
+
+        btn_nova = None
+        for _ in range(5):
+            btn_nova = page.query_selector("a:has-text('Nova Inscrição'), input[value*='Nova Inscrição'], button:has-text('Nova Inscrição'), a:has-text('Nova Inscricao'), #btnNovaInscricao")
+            if btn_nova and btn_nova.is_visible():
+                break
+            time.sleep(1)
+
+        if btn_nova:
+            btn_nova.click()
+            try:
+                page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
+            time.sleep(1.5)
+    except Exception as e:
+        print(f"Aviso ao navegar para modulo de inscricao: {str(e)}")
 
 from gerar_pdf import gerar_pdf_comprovante
 
@@ -610,6 +679,52 @@ def exibir_vagas_confirmadas(page, cfg):
 
     caminho_pdf = gerar_pdf_comprovante(conteudo, "comprovantes/comprovante_vagas.pdf", cfg.get("documento", ""), page=page)
     print(f"Arquivo PDF gerado: {caminho_pdf}")
+
+    if cfg.get("notificar_whatsapp"):
+        try:
+            from whatsapp_notifier import (
+                disparar_notificacoes_whatsapp,
+                parse_vagas_from_text,
+                formatar_resumo_vagas_wpp
+            )
+            destinatarios = []
+            if cfg.get("cliente_telefone"):
+                destinatarios.append(cfg.get("cliente_telefone"))
+            if cfg.get("whatsapp_notify_numbers"):
+                destinatarios.append(cfg.get("whatsapp_notify_numbers"))
+            todos_destinatarios = ",".join(destinatarios)
+            if todos_destinatarios.strip():
+                print(f"Enviando comprovante por WhatsApp para destinatarios...")
+                doc_cliente = cfg.get("documento", "")
+                nome_cliente = cfg.get("nome_cliente") or cfg.get("cliente_nome") or ""
+                info_cli = f"{nome_cliente} ({doc_cliente})" if nome_cliente else doc_cliente
+                data_hora_str = datetime.now().strftime("%d/%m/%Y às %H:%M")
+
+                vagas = parse_vagas_from_text(conteudo)
+                resumo_vagas = formatar_resumo_vagas_wpp(vagas)
+
+                msg_wpp = (
+                    f"📋 *CPROEIS - Inscrição Realizada*\n\n"
+                    f"👤 *Cliente:* {info_cli}\n"
+                    f"✅ *Status:* Vagas confirmadas no portal\n"
+                    f"🕒 *Data/Hora:* {data_hora_str}\n\n"
+                    f"{resumo_vagas}\n\n"
+                    f"📄 Comprovante oficial com os detalhes das vagas em anexo."
+                )
+
+                res_wpp = disparar_notificacoes_whatsapp(
+                    numeros_raw=todos_destinatarios,
+                    texto=msg_wpp,
+                    caminho_pdf=caminho_pdf,
+                    legenda="Comprovante Oficial CPROEIS",
+                    api_url=cfg.get("evolution_api_url"),
+                    instance=cfg.get("evolution_instance"),
+                    api_key=cfg.get("evolution_api_key"),
+                    delay_segundos=5
+                )
+                print(f"WhatsApp: {res_wpp.get('message', '')}")
+        except Exception as e_wpp:
+            print(f"Aviso no envio WhatsApp: {str(e_wpp)}")
 
 def gerar_datas_alvo(cfg):
     tipo_data = cfg.get("tipo_data", "dias_frente")

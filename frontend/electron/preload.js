@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   configurarAgenda: (baseUrl, token) => ipcRenderer.invoke("agenda:configurar", { baseUrl, token }),
   listComprovantes: () => ipcRenderer.invoke("comprovantes:list"),
   openComprovante: (filePath) => ipcRenderer.invoke("comprovantes:open", filePath),
+  deleteComprovante: (filePath) => ipcRenderer.invoke("comprovantes:delete", filePath),
   onLog: (callback) => {
     const subscription = (_event, value) => callback(value)
     ipcRenderer.on("bot:log", subscription)

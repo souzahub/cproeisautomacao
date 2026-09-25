@@ -106,6 +106,7 @@ class BotRunnerService:
                         "convenio": client.convenio or "",
                         "preferred_events": client.preferred_events or "",
                         "preferred_hours": client.preferred_hours or "",
+                        "phone": client.phone or "",
                         "only_listed_events": bool(client.only_listed_events),
                         "only_titular": bool(client.only_titular),
                         "tipo_data": client.tipo_data or "dias_frente",
@@ -152,6 +153,7 @@ class BotRunnerService:
             env_vars["CONVENIO"] = client_data["convenio"]
             env_vars["EVENTOS_PREFERIDOS"] = client_data["preferred_events"]
             env_vars["HORARIOS_PREFERIDOS"] = client_data["preferred_hours"]
+            env_vars["CLIENTE_TELEFONE"] = client_data["phone"]
             env_vars["APENAS_EVENTOS_LISTADOS"] = "true" if client_data["only_listed_events"] else "false"
             env_vars["APENAS_TITULAR"] = "true" if client_data["only_titular"] else "false"
             env_vars["TIPO_DATA"] = client_data["tipo_data"]

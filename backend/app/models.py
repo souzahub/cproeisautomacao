@@ -48,6 +48,7 @@ class ClientProfile(Base):
     convenio = Column(String, default="HCPM - RAS")
     preferred_events = Column(Text, default="")
     preferred_hours = Column(String(255), default="")
+    phone = Column(String(255), default="")
     only_listed_events = Column(Boolean, default=False)
     only_titular = Column(Boolean, default=False)
     tipo_data = Column(String, default="dias_frente")

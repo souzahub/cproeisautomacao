@@ -22,7 +22,6 @@ import {
 } from "../components/ui/alert-dialog"
 import { Button } from "../components/ui/button"
 
-// 0 = segunda (mesma convencao do CronTrigger do backend)
 const DIAS = [
   { valor: "0", curto: "seg", nome: "segunda" },
   { valor: "1", curto: "ter", nome: "terça" },
@@ -55,6 +54,35 @@ function formatarDataHora(iso) {
   } catch {
     return iso
   }
+}
+
+function calcularProximaExecucao(hora, diasCsv) {
+  if (!hora || !diasCsv) return "não programado"
+  const [h, m] = hora.split(":").map(Number)
+  const dias = (diasCsv || "").split(",").map((d) => Number(d.trim())).filter((n) => !isNaN(n))
+  if (dias.length === 0) return "nenhum dia selecionado"
+
+  const agora = new Date()
+  for (let offset = 0; offset <= 7; offset++) {
+    const dataTeste = new Date(agora)
+    dataTeste.setDate(agora.getDate() + offset)
+    const diaSemanaJs = (dataTeste.getDay() + 6) % 7
+    if (dias.includes(diaSemanaJs)) {
+      dataTeste.setHours(h, m, 0, 0)
+      if (dataTeste.getTime() > agora.getTime()) {
+        const diaNome = DIAS.find((d) => Number(d.valor) === diaSemanaJs)?.nome || ""
+        const dataFormatada = dataTeste.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+        if (offset === 0) {
+          return `hoje (${diaNome}) às ${hora}`
+        }
+        if (offset === 1) {
+          return `amanhã (${diaNome}) às ${hora}`
+        }
+        return `${diaNome} (${dataFormatada}) às ${hora}`
+      }
+    }
+  }
+  return "próxima semana"
 }
 
 const formInicial = {
@@ -214,7 +242,7 @@ export function Schedules() {
           <div className="clients-header-info">
             <h3 className="card-title">agendamentos automáticos</h3>
             <p className="card-desc">
-              defina dias e horários fixos para o robô iniciar sozinho — a execução acontece no app do computador, com ele aberto
+              defina dias e horários fixos para o robô iniciar sozinho no seu computador com ip do brasil
             </p>
           </div>
 
@@ -284,6 +312,13 @@ export function Schedules() {
                         title={s.mode === "producao" ? "agenda vagas de verdade" : "apenas simula, não confirma vagas"}
                       >
                         {s.mode === "producao" ? "produção" : "homologação"}
+                      </span>
+                    </div>
+
+                    <div className="client-info-row">
+                      <span className="client-info-label">próxima execução:</span>
+                      <span className="client-info-val" style={{ color: "var(--accent)", fontWeight: 500 }}>
+                        {s.is_active ? calcularProximaExecucao(s.hora, s.dias_semana) : "pausado"}
                       </span>
                     </div>
 
@@ -461,6 +496,10 @@ export function Schedules() {
                       </button>
                     )
                   })}
+                </div>
+                <div style={{ marginTop: "8px", padding: "8px 10px", backgroundColor: "var(--bg-main)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", fontSize: "12px", color: "var(--text-secondary)" }}>
+                  <span>próxima execução calculada: </span>
+                  <strong style={{ color: "var(--text-primary)" }}>{calcularProximaExecucao(formData.hora, formData.dias_semana)}</strong>
                 </div>
                 {fieldErrors.dias_semana && <span className="field-error-message">{fieldErrors.dias_semana}</span>}
               </div>

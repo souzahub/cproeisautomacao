@@ -4,6 +4,36 @@ Este documento registra todas as alterações, melhorias, correções de bugs e 
 
 ---
 
+## [25/09/2026] - Criação do Painel Independente para Easypanel & Módulo de Cobrança
+
+### 1. Aplicação Dedicada para Easypanel (`painel/`)
+- **Backend FastAPI Isolado (`painel/backend/`)**:
+  - Banco de dados SQLite próprio (`data/app.db`) com isolamento e persistência via volume Docker.
+  - Autenticação JWT compatível com a base de usuários do sistema.
+  - Rota de sincronização segura `POST /api/sync/push` protegida por `SYNC_SECRET_KEY` (em header ou payload).
+  - Rotas de listagem e controle de clientes (`/api/clients`), agendamentos obtidos (`/api/agendamentos`), faturamento (`/api/billing/metrics`) e parâmetros (`/api/settings`).
+- **Frontend Web Reativo (`painel/frontend/`)**:
+  - Desenvolvido em React + Vite com build unificado servido pelo próprio container.
+  - Estilização limpa sem emojis, sem gradientes e com textos em sentence case.
+  - **Dashboard**: total de agendamentos, clientes cadastrados, faturamento previsto, valores a receber e valores já recebidos.
+  - **Agendamentos**: tabela filtrável por status de pagamento (pendente/pago), cliente e busca textual, com edição de valor cobrado e alternância de status.
+  - **Clientes e cobrança**: painel de clientes com total de vagas obtidas, configuração de valor personalizado por cliente ou herança do padrão global, e liquidação em lote de débitos pendentes.
+  - **Configurações**: definição de preço padrão global por vaga (ex: R$ 30,00) e chave de sincronização.
+- **Estrutura Docker para Easypanel**:
+  - `painel/Dockerfile`: compilação multi-stage (Node 20 Alpine para o frontend e Python 3.11 Slim para o backend).
+  - `painel/docker-compose.yml`, `painel/.env.example` e `painel/README.md` com instruções detalhadas de implantação e mapeamento de volumes.
+
+### 2. Sincronização em Segundo Plano no Sistema Local
+- **Serviço Assíncrono (`backend/app/services/sync_service.py`)**:
+  - Envia usuários, perfis de clientes e agendamentos obtidos para o painel em nuvem de forma não bloqueante.
+  - Não interfere no funcionamento local caso o sistema esteja offline ou sem as credenciais configuradas.
+- **Gatilho Automático no Login**:
+  - Ao autenticar no sistema local (`backend/app/routes/auth.py`), o serviço de sincronização é acionado automaticamente em segundo plano.
+- **Variáveis de Ambiente**:
+  - Adicionadas `PAINEL_URL` e `SYNC_SECRET_KEY` no `.env.example` para conexão direta com a instância do Easypanel.
+
+---
+
 ## [16/09/2026] - Versão 1.2.0 & Criação do App Android Nativo
 
 ### 1. Relatório de Vagas Vinculado à Busca & Limpeza de Logs

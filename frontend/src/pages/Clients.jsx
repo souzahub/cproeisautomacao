@@ -179,6 +179,7 @@ export function Clients() {
     convenio: "HCPM - RAS",
     preferred_events: "",
     preferred_hours: "",
+    phone: "",
     only_listed_events: false,
     only_titular: false,
     tipo_data: "dias_frente",
@@ -245,6 +246,7 @@ export function Clients() {
       convenio: client.convenio || "HCPM - RAS",
       preferred_events: client.preferred_events || "",
       preferred_hours: client.preferred_hours || "",
+      phone: client.phone || "",
       only_listed_events: client.only_listed_events || false,
       only_titular: client.only_titular || false,
       tipo_data: client.tipo_data || "dias_frente",
@@ -574,6 +576,13 @@ export function Clients() {
                       <span className="client-info-label">convênio:</span>
                       <span className="client-badge-pill-inline">{c.convenio || "padrão"}</span>
                     </div>
+
+                    {c.phone && (
+                      <div className="client-info-row">
+                        <span className="client-info-label">whatsapp:</span>
+                        <span className="client-info-val" style={{ fontSize: "12px" }}>{c.phone}</span>
+                      </div>
+                    )}
 
                     <div className="client-info-row">
                       <span className="client-info-label">regra de busca:</span>
@@ -908,6 +917,28 @@ export function Clients() {
                     disabled={actionLoading}
                   />
                   {fieldErrors.password && <span className="field-error-message">{fieldErrors.password}</span>}
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <label className="form-label" htmlFor="cli_phone" style={{ marginBottom: 0 }}>
+                      telefone / whatsapp para envio de comprovante
+                    </label>
+                    <InfoTooltip
+                      title="whatsapp do cliente"
+                      text="número(s) que receberão o comprovante em pdf assim que a vaga for agendada. Se informar mais de um, separe por vírgula."
+                      example="21999999999 ou 21999999999, 21988888888"
+                    />
+                  </div>
+                  <input
+                    id="cli_phone"
+                    className="form-input"
+                    style={{ marginTop: "4px" }}
+                    value={formData.phone || ""}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="ex: 21999999999 ou 21999999999, 21988888888"
+                    disabled={actionLoading}
+                  />
                 </div>
 
                 {/* Seção Retrátil (+ / -) para Acesso ao Sistema */}

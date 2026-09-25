@@ -402,6 +402,22 @@ ipcMain.handle("comprovantes:open", async (_event, filePath) => {
   return { success: false }
 })
 
+ipcMain.handle("comprovantes:delete", async (_event, filePath) => {
+  const rootDir = getProjectRoot()
+  const cleanName = path.basename(filePath)
+  const targetPath = path.join(rootDir, "comprovantes", cleanName)
+  if (fs.existsSync(targetPath)) {
+    try {
+      fs.unlinkSync(targetPath)
+      return { success: true }
+    } catch {
+      return { success: false }
+    }
+  }
+  return { success: false }
+})
+
+
 ipcMain.handle("bot:stop", async () => {
   killCurrentProcess()
   updateStatus({ status: "stopped" })

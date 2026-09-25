@@ -14,7 +14,7 @@ if sys.platform == "win32":
 
 load_dotenv()
 
-SERVER_URL = os.getenv("SERVER_URL", "https://cprsautomacao.devsouza.online").rstrip("/")
+SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000").rstrip("/")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "luansouza88@gmail.com")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Souz@199133")
 

@@ -6,6 +6,7 @@ from ..database import get_db
 from ..models import User
 from ..schemas import BotSettingsSchema
 from ..security import get_current_user
+from ..services.whatsapp import testar_conexao_evolution, disparar_notificacoes_whatsapp, extrair_lista_numeros
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -73,7 +74,12 @@ def get_settings(current_user: User = Depends(get_current_user)):
         "MODO_HOMOLOGACAO": env_data.get("MODO_HOMOLOGACAO", "true").lower() == "true",
         "GEMINI_MODEL": env_data.get("GEMINI_MODEL", "antigravity99"),
         "GEMINI_API_KEY": env_data.get("GEMINI_API_KEY", ""),
-        "AI_BASE_URL": env_data.get("AI_BASE_URL", "https://9router.devsouza.online/v1")
+        "AI_BASE_URL": env_data.get("AI_BASE_URL", "https://9router.devsouza.online/v1"),
+        "NOTIFICAR_WHATSAPP": env_data.get("NOTIFICAR_WHATSAPP", "false").lower() == "true",
+        "EVOLUTION_API_URL": env_data.get("EVOLUTION_API_URL", ""),
+        "EVOLUTION_INSTANCE": env_data.get("EVOLUTION_INSTANCE", ""),
+        "EVOLUTION_API_KEY": env_data.get("EVOLUTION_API_KEY", ""),
+        "WHATSAPP_NOTIFY_NUMBERS": env_data.get("WHATSAPP_NOTIFY_NUMBERS", "")
     }
 
 @router.put("", response_model=BotSettingsSchema)
@@ -100,7 +106,12 @@ def update_settings(settings_in: BotSettingsSchema, current_user: User = Depends
         "MODO_HOMOLOGACAO": "true" if settings_in.MODO_HOMOLOGACAO else "false",
         "GEMINI_MODEL": settings_in.GEMINI_MODEL or "gemini-3.7-flash",
         "GEMINI_API_KEY": settings_in.GEMINI_API_KEY or "",
-        "AI_BASE_URL": settings_in.AI_BASE_URL or "https://9router.devsouza.online/v1"
+        "AI_BASE_URL": settings_in.AI_BASE_URL or "https://9router.devsouza.online/v1",
+        "NOTIFICAR_WHATSAPP": "true" if settings_in.NOTIFICAR_WHATSAPP else "false",
+        "EVOLUTION_API_URL": settings_in.EVOLUTION_API_URL or "",
+        "EVOLUTION_INSTANCE": settings_in.EVOLUTION_INSTANCE or "",
+        "EVOLUTION_API_KEY": settings_in.EVOLUTION_API_KEY or "",
+        "WHATSAPP_NOTIFY_NUMBERS": settings_in.WHATSAPP_NOTIFY_NUMBERS or ""
     }
 
     if settings_in.SENHA:
@@ -138,3 +149,49 @@ def test_ai_key(payload: dict, current_user: User = Depends(get_current_user)):
         return {"success": True, "message": f"Conexão bem sucedida. Captcha resolvido: {code}", "code": code}
     
     return {"success": False, "message": f"O provedor não retornou um código válido. Endpoint usado: {base_url} | modelo: {model}"}
+
+@router.post("/test-whatsapp")
+def test_whatsapp(payload: dict, current_user: User = Depends(get_current_user)):
+    url = (payload.get("url") or payload.get("EVOLUTION_API_URL") or os.getenv("EVOLUTION_API_URL") or "").strip()
+    instance = (payload.get("instance") or payload.get("EVOLUTION_INSTANCE") or os.getenv("EVOLUTION_INSTANCE") or "").strip()
+    api_key = (payload.get("api_key") or payload.get("EVOLUTION_API_KEY") or os.getenv("EVOLUTION_API_KEY") or "").strip()
+    numbers_raw = (payload.get("numbers") or payload.get("WHATSAPP_NOTIFY_NUMBERS") or payload.get("test_number") or "").strip()
+
+    if not url:
+        raise HTTPException(status_code=400, detail="endereço da evolution api não informado.")
+    if not instance:
+        raise HTTPException(status_code=400, detail="nome da instância não informado.")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="chave de api da evolution não informada.")
+
+    conn_res = testar_conexao_evolution(url, instance, api_key)
+    if not conn_res.get("success"):
+        return {
+            "success": False,
+            "message": conn_res.get("message") or "falha ao conectar na instância da evolution api",
+            "state": conn_res.get("state")
+        }
+
+    numeros = extrair_lista_numeros(numbers_raw)
+    if numeros:
+        texto_teste = "teste de conexao cproeis: integracao com evolution api funcionando."
+        send_res = disparar_notificacoes_whatsapp(
+            numeros_raw=numbers_raw,
+            texto=texto_teste,
+            api_url=url,
+            instance=instance,
+            api_key=api_key,
+            delay_segundos=5
+        )
+        return {
+            "success": send_res.get("success", False),
+            "message": f"instancia conectada ({conn_res.get('state', 'online')}). {send_res.get('message')}",
+            "state": conn_res.get("state"),
+            "details": send_res
+        }
+
+    return {
+        "success": True,
+        "message": f"instancia '{instance}' conectada ({conn_res.get('state', 'online')}).",
+        "state": conn_res.get("state")
+    }
