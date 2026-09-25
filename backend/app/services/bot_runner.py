@@ -74,6 +74,11 @@ class BotRunnerService:
                     with self.lock:
                         exec_record.logs = "\n".join([f"[{l['timestamp']}] {l['message']}" for l in self.logs])
                     db.commit()
+                    try:
+                        from .sync_service import trigger_background_sync
+                        trigger_background_sync()
+                    except Exception:
+                        pass
             except Exception:
                 db.rollback()
             finally:
